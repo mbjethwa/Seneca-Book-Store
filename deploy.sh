@@ -100,6 +100,9 @@ services:
       - "8001:8000"
     environment:
       - PORT=8000
+      - SECRET_KEY=your-super-secret-jwt-key-change-in-production-please
+      - DATABASE_URL=sqlite:///./users.db
+      - ACCESS_TOKEN_EXPIRE_MINUTES=60
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
       interval: 30s

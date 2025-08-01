@@ -15,9 +15,27 @@ A modern microservices-based bookstore application built with FastAPI backend se
 ## Services
 
 ### Backend Services (FastAPI)
-- **User Service**: Handles user authentication and profile management
-- **Catalog Service**: Manages book inventory and catalog
-- **Order Service**: Processes orders and transactions
+
+#### User Service (Phase 1 - Complete ✅)
+- **Authentication & User Management**
+- **Endpoints:**
+  - `POST /register` - User registration with email/password
+  - `POST /login` - User login returning JWT token
+  - `GET /me` - Get current user information (requires authentication)
+  - `GET /health` - Service health check
+- **Features:**
+  - Password hashing with bcrypt
+  - JWT token authentication (1-hour expiration)
+  - SQLite database with SQLAlchemy ORM
+  - User registration validation
+
+#### Catalog Service
+- **Book inventory and catalog management**
+- Basic health check endpoints
+
+#### Order Service  
+- **Order processing and transactions**
+- Basic health check endpoints
 
 All backend services:
 - Run on port 8000
@@ -94,20 +112,58 @@ This will:
 
 ## API Endpoints
 
-### User Service (Port 8000)
+### User Service (Port 8000/8001)
+- `POST /register` - Register new user
+  ```json
+  {
+    "email": "user@example.com",
+    "password": "password123",
+    "full_name": "John Doe"
+  }
+  ```
+- `POST /login` - User login (returns JWT token)
+  ```json
+  {
+    "email": "user@example.com", 
+    "password": "password123"
+  }
+  ```
+- `GET /me` - Get current user info (requires Bearer token)
+- `GET /health` - Service health status
+
+### Catalog Service (Port 8000/8002)
 - `GET /` - Health check
 - `GET /health` - Service health status
 
-### Catalog Service (Port 8000)
-- `GET /` - Health check
-- `GET /health` - Service health status
-
-### Order Service (Port 8000)
+### Order Service (Port 8000/8003)
 - `GET /` - Health check
 - `GET /health` - Service health status
 
 ### Frontend Service
 - Accessible via LoadBalancer on port 80
+
+## Authentication
+
+The User Service uses JWT (JSON Web Tokens) for authentication:
+
+1. **Register** a new user with `/register`
+2. **Login** with `/login` to receive a JWT token
+3. **Include token** in Authorization header: `Bearer <token>`
+4. **Access protected routes** like `/me`
+
+**Token Configuration:**
+- Expires in 1 hour
+- Uses HS256 algorithm
+- Secret key configurable via environment variable
+
+## Environment Variables
+
+### User Service
+```bash
+SECRET_KEY=your-super-secret-jwt-key-change-in-production-please
+DATABASE_URL=sqlite:///./users.db
+ACCESS_TOKEN_EXPIRE_MINUTES=60
+```
 
 ## Development Guide
 

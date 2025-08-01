@@ -30,15 +30,24 @@ This guide covers different deployment options for the Seneca Book Store microse
 Each backend service can be run independently:
 
 ```bash
-# User Service
+# User Service (with authentication)
 cd user-service
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
+
+# Set environment variables
+export SECRET_KEY="your-super-secret-jwt-key-change-in-production-please"
+export DATABASE_URL="sqlite:///./users.db"
+
 python main.py
 # Service available at http://localhost:8000
 
-# Repeat for catalog-service and order-service
+# Test the endpoints:
+# Register: curl -X POST "http://localhost:8000/register" -H "Content-Type: application/json" -d '{"email":"test@example.com","password":"test123","full_name":"Test User"}'
+# Login: curl -X POST "http://localhost:8000/login" -H "Content-Type: application/json" -d '{"email":"test@example.com","password":"test123"}'
+
+# Repeat for catalog-service and order-service (basic health checks only)
 ```
 
 ### Frontend Service Setup
@@ -54,7 +63,17 @@ npm start
 
 Create `.env` files in each service directory for local configuration:
 
-**Backend Services (.env):**
+**User Service (.env):**
+```env
+SECRET_KEY=your-super-secret-jwt-key-change-in-production-please
+DATABASE_URL=sqlite:///./users.db
+ACCESS_TOKEN_EXPIRE_MINUTES=60
+PORT=8000
+DEBUG=true
+LOG_LEVEL=info
+```
+
+**Other Backend Services (.env):**
 ```env
 PORT=8000
 DEBUG=true
