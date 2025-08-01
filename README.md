@@ -29,9 +29,25 @@ A modern microservices-based bookstore application built with FastAPI backend se
   - SQLite database with SQLAlchemy ORM
   - User registration validation
 
-#### Catalog Service
-- **Book inventory and catalog management**
-- Basic health check endpoints
+#### Catalog Service (Phase 2 - Complete ✅)
+- **Book Inventory & Catalog Management**
+- **Endpoints:**
+  - `GET /books` - List books with search/filter/pagination
+  - `GET /books/{id}` - Get specific book details
+  - `POST /books` - Add new book (admin only)
+  - `PUT /books/{id}` - Update book (admin only)
+  - `DELETE /books/{id}` - Delete book (admin only)
+  - `GET /categories` - Get all book categories
+  - `GET /authors` - Get all authors
+  - `POST /seed-data` - Create sample data (admin only)
+  - `GET /health` - Service health check
+- **Features:**
+  - Advanced search and filtering (title, author, category, price range)
+  - Pagination support
+  - Admin-only book management
+  - ISBN validation and duplicate prevention
+  - Book availability and stock tracking
+  - SQLite database with SQLAlchemy ORM
 
 #### Order Service  
 - **Order processing and transactions**
@@ -132,7 +148,30 @@ This will:
 - `GET /health` - Service health status
 
 ### Catalog Service (Port 8000/8002)
-- `GET /` - Health check
+- `GET /books` - List books with optional filters
+  - Query parameters: `page`, `size`, `search`, `category`, `author`, `min_price`, `max_price`, `available_only`
+- `GET /books/{id}` - Get specific book
+- `POST /books` - Create book (admin only)
+  ```json
+  {
+    "title": "Book Title",
+    "author": "Author Name",
+    "isbn": "978-1234567890",
+    "description": "Book description",
+    "category": "Programming",
+    "price": 49.99,
+    "rent_price": 5.99,
+    "available": true,
+    "stock_quantity": 10,
+    "publication_year": 2024,
+    "publisher": "Publisher Name"
+  }
+  ```
+- `PUT /books/{id}` - Update book (admin only)
+- `DELETE /books/{id}` - Delete book (admin only)
+- `GET /categories` - Get all categories
+- `GET /authors` - Get all authors
+- `POST /seed-data` - Create sample books (admin only)
 - `GET /health` - Service health status
 
 ### Order Service (Port 8000/8003)
@@ -164,6 +203,23 @@ SECRET_KEY=your-super-secret-jwt-key-change-in-production-please
 DATABASE_URL=sqlite:///./users.db
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 ```
+
+### Catalog Service
+```bash
+DATABASE_URL=sqlite:///./catalog.db
+USER_SERVICE_URL=http://localhost:8001
+ADMIN_EMAILS=admin@seneca.ca,admin@example.com
+```
+
+## Admin Access
+
+To access admin-only endpoints in the Catalog Service:
+
+1. **Register as admin** in User Service with an email from `ADMIN_EMAILS`
+2. **Login** to get JWT token
+3. **Use Bearer token** in Authorization header for admin endpoints
+
+**Default admin emails**: `admin@seneca.ca`, `admin@example.com`
 
 ## Development Guide
 

@@ -117,6 +117,12 @@ services:
       - "8002:8000"
     environment:
       - PORT=8000
+      - DATABASE_URL=sqlite:///./catalog.db
+      - USER_SERVICE_URL=http://user-service:8000
+      - ADMIN_EMAILS=admin@seneca.ca,admin@example.com
+    depends_on:
+      user-service:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
       interval: 30s

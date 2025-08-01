@@ -17,10 +17,16 @@ Seneca Book Store/
 │   ├── requirements.txt           # Python dependencies (with auth libs)
 │   ├── Dockerfile                 # Docker configuration
 │   └── .env.example               # Environment variables template
-├── catalog-service/               # Book catalog microservice (basic)
-│   ├── main.py                    # FastAPI application
+├── catalog-service/               # Book catalog microservice ✅ COMPLETE
+│   ├── main.py                    # FastAPI application with book management
+│   ├── database.py                # SQLAlchemy models and DB setup
+│   ├── auth.py                    # Admin authentication utilities
+│   ├── schemas.py                 # Pydantic models for books
+│   ├── crud.py                    # Database operations
+│   ├── test_main.py               # Unit tests
 │   ├── requirements.txt           # Python dependencies
-│   └── Dockerfile                 # Docker configuration
+│   ├── Dockerfile                 # Docker configuration
+│   └── .env.example               # Environment variables template
 ├── order-service/                 # Order processing microservice (basic)
 │   ├── main.py                    # FastAPI application
 │   ├── requirements.txt           # Python dependencies
@@ -37,9 +43,9 @@ Seneca Book Store/
     └── frontend-service.yaml      # Frontend service K8s manifest
 ```
 
-## Phase 1 Implementation Status ✅
+## Phase 1 & 2 Implementation Status ✅
 
-### User Service - COMPLETE
+### User Service - COMPLETE ✅
 - ✅ **Authentication System**: JWT-based authentication
 - ✅ **User Registration**: `/register` endpoint with email/password
 - ✅ **User Login**: `/login` endpoint returning JWT tokens
@@ -49,10 +55,64 @@ Seneca Book Store/
 - ✅ **Testing**: Comprehensive unit tests
 - ✅ **Environment Config**: Secure configuration management
 
+### Catalog Service - COMPLETE ✅
+- ✅ **Book Management**: Full CRUD operations for books
+- ✅ **Admin Authentication**: Integration with User Service for admin access
+- ✅ **Advanced Search**: Search by title, author, description with filters
+- ✅ **Inventory Tracking**: Stock quantity and availability management
+- ✅ **Pricing System**: Both purchase and rental pricing
+- ✅ **Data Validation**: Comprehensive validation with Pydantic
+- ✅ **Database**: SQLite with SQLAlchemy ORM
+- ✅ **Testing**: Full test suite with mocked authentication
+- ✅ **Sample Data**: Seed endpoint for development
+
 ### Other Services - Basic Setup
-- ✅ **Catalog Service**: Health check endpoints only
 - ✅ **Order Service**: Health check endpoints only
 - ✅ **Frontend Service**: React app ready for integration
+
+## Book Management Flow (Phase 2)
+
+1. **Admin Setup**:
+   ```bash
+   # Register as admin (use admin email)
+   POST /register
+   {
+     "email": "admin@seneca.ca",
+     "password": "adminpass123",
+     "full_name": "Admin User"
+   }
+   ```
+
+2. **Admin Authentication**:
+   ```bash
+   POST /login
+   {
+     "email": "admin@seneca.ca", 
+     "password": "adminpass123"
+   }
+   # Returns: {"access_token": "jwt_token", "token_type": "bearer"}
+   ```
+
+3. **Book Management**:
+   ```bash
+   # Create sample data
+   POST /seed-data
+   Authorization: Bearer <jwt_token>
+   
+   # Add new book
+   POST /books
+   Authorization: Bearer <jwt_token>
+   {
+     "title": "Python Programming",
+     "author": "John Smith",
+     "price": 49.99,
+     "rent_price": 5.99,
+     "category": "Programming"
+   }
+   
+   # Search books
+   GET /books?search=Python&category=Programming
+   ```
 
 ## Authentication Flow
 
@@ -112,7 +172,6 @@ pytest test_main.py
 
 ## Next Phases
 
-- **Phase 2**: Catalog Service - Book inventory management
-- **Phase 3**: Order Service - Order processing
+- **Phase 3**: Order Service - Order processing and rental management
 - **Phase 4**: Frontend Integration - Connect React app to backend APIs
-- **Phase 5**: Advanced Features - Search, recommendations, etc.
+- **Phase 5**: Advanced Features - Recommendations, reviews, advanced search

@@ -47,7 +47,25 @@ python main.py
 # Register: curl -X POST "http://localhost:8000/register" -H "Content-Type: application/json" -d '{"email":"test@example.com","password":"test123","full_name":"Test User"}'
 # Login: curl -X POST "http://localhost:8000/login" -H "Content-Type: application/json" -d '{"email":"test@example.com","password":"test123"}'
 
-# Repeat for catalog-service and order-service (basic health checks only)
+# Catalog Service (with book management)
+cd ../catalog-service
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+# Set environment variables
+export DATABASE_URL="sqlite:///./catalog.db"
+export USER_SERVICE_URL="http://localhost:8001"
+export ADMIN_EMAILS="admin@seneca.ca,admin@example.com"
+
+python main.py
+# Service available at http://localhost:8000
+
+# Test the endpoints:
+# List books: curl "http://localhost:8000/books"
+# Get categories: curl "http://localhost:8000/categories"
+
+# Repeat for order-service (basic health checks only)
 ```
 
 ### Frontend Service Setup
@@ -68,6 +86,16 @@ Create `.env` files in each service directory for local configuration:
 SECRET_KEY=your-super-secret-jwt-key-change-in-production-please
 DATABASE_URL=sqlite:///./users.db
 ACCESS_TOKEN_EXPIRE_MINUTES=60
+PORT=8000
+DEBUG=true
+LOG_LEVEL=info
+```
+
+**Catalog Service (.env):**
+```env
+DATABASE_URL=sqlite:///./catalog.db
+USER_SERVICE_URL=http://localhost:8001
+ADMIN_EMAILS=admin@seneca.ca,admin@example.com
 PORT=8000
 DEBUG=true
 LOG_LEVEL=info
