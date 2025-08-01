@@ -15,8 +15,9 @@ spec:
     metadata:
       labels:
         app: catalog-service
-        component: backend
+        component: api
     spec:
+      serviceAccountName: catalog-service-sa
       containers:
       - name: catalog-service
         image: localhost:5000/catalog-service:latest

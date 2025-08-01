@@ -1,15 +1,16 @@
 # 🚀 Deployment Guide - Seneca Book Store
 
-This comprehensive guide covers all deployment options for the Seneca Book Store microservices application, from local development to production Kubernetes deployment using the **unified deployment script**.
+This comprehensive guide covers all deployment options for the Seneca Book Store microservices application, from local development to production Kubernetes deployment with enterprise-grade security using the **unified deployment script**.
 
 ## 📋 Table of Contents
 1. [Prerequisites](#prerequisites)
 2. [Quick Start](#quick-start)
 3. [Unified Deployment Script](#unified-deployment-script)
 4. [Kubernetes Deployment (Production)](#kubernetes-deployment-production)
-5. [Docker Deployment (Development)](#docker-deployment-development)
-6. [Configuration Management](#configuration-management)
-7. [Troubleshooting](#troubleshooting)
+5. [Security Features](#security-features)
+6. [Docker Deployment (Development)](#docker-deployment-development)
+7. [Configuration Management](#configuration-management)
+8. [Troubleshooting](#troubleshooting)
 
 ## 🛠️ Prerequisites
 
@@ -219,6 +220,55 @@ seneca-bookstore/
 - **Network Policies**: Ingress-controlled access
 - **Resource Limits**: CPU/Memory limits on all pods
 
+## 🔐 Security Features
+
+### Comprehensive Security Implementation
+
+The Seneca Book Store implements enterprise-grade security features for production deployment:
+
+#### 1. RBAC (Role-Based Access Control)
+```yaml
+Service Accounts & Permissions:
+- user-service-sa: Access to secrets and ConfigMaps
+- catalog-service-sa: Read-only access to resources  
+- order-service-sa: Standard service permissions
+- frontend-service-sa: Minimal read-only access
+```
+
+#### 2. Network Policies
+```yaml
+Security Rules:
+- Default deny-all traffic policy
+- Allow internal service-to-service communication only
+- Block external access except via Ingress controller
+- DNS resolution allowed for all services
+```
+
+#### 3. Comprehensive Logging
+```bash
+# All API calls logged with:
+Method: GET | Path: /api/books | User: admin@seneca.ca | Status: 200 | Time: 0.045s
+Method: POST | Path: /api/orders | User: user@seneca.ca | Status: 201 | Time: 0.123s
+Method: GET | Path: /health | User: anonymous | Status: 200 | Time: 0.012s
+```
+
+#### 4. TLS/HTTPS Encryption
+- Automatic certificate management with cert-manager
+- All traffic encrypted in transit
+- Secure communication between services
+
+#### 5. Security Verification
+```bash
+# Verify RBAC is working
+kubectl auth can-i get secrets --as=system:serviceaccount:seneca-bookstore:catalog-service-sa
+
+# Check network policies
+kubectl get networkpolicies -n seneca-bookstore
+
+# View security logs
+kubectl logs -f deployment/user-service -n seneca-bookstore | grep "Method:"
+```
+
 ### Shutdown and Cleanup
 
 #### Shutdown Options
@@ -338,6 +388,147 @@ kubectl port-forward deployment/user-service 8001:8000 -n seneca-bookstore
 
 ---
 
+## 🧪 Testing and Validation
+
+### Comprehensive Testing Suite
+
+#### Automated Test Execution
+```bash
+# Run all tests against the deployed application
+./test.sh
+
+# Test specific deployment target
+./test.sh k8s          # Test Kubernetes deployment
+./test.sh docker       # Test Docker Compose deployment
+./test.sh both         # Test both deployments
+
+# Run specific test types
+./test.sh --unit-only     # Unit tests only
+./test.sh --load-only     # Load tests only
+./test.sh --integration   # Integration tests only
+./test.sh --monitoring    # Monitoring stack tests
+```
+
+#### Test Types Available
+
+**1. Unit Tests**
+- pytest suite for authentication endpoints
+- Comprehensive test coverage for /register and /login
+- Input validation and edge case testing
+- Authentication flow validation
+
+**2. Load Testing**
+- High-concurrency testing for /books and /orders endpoints
+- Configurable user count and request volume
+- Performance analytics and response time tracking
+- Mixed workload simulation
+
+**3. Integration Tests**
+- End-to-end user workflow validation
+- Cross-service communication testing
+- Authentication flow from registration to protected endpoints
+- Real-world scenario simulation
+
+**4. Monitoring Validation**
+- Prometheus metrics endpoint testing
+- Grafana dashboard accessibility
+- Service health check validation
+- Monitoring stack connectivity
+
+#### Performance Testing
+```bash
+# Run load tests with custom parameters
+python scripts/load_test.py --requests 100 --users 10 --duration 30
+
+# Quick performance check
+./test.sh --quick
+
+# Comprehensive load testing
+python scripts/load_test.py --requests 500 --users 25 --duration 60
+```
+
+### Test Environment Setup
+```bash
+# Install test dependencies
+pip install pytest requests
+
+# Run tests in the background while monitoring
+./test.sh --monitoring &
+watch kubectl get pods -n seneca-bookstore
+```
+
+---
+
+## 📊 Monitoring and Observability
+
+### Enterprise Monitoring Stack
+
+#### Prometheus Configuration
+- **Metrics Collection**: All services expose `/metrics` endpoints
+- **Scrape Intervals**: 15-second intervals for real-time monitoring
+- **Alert Rules**: Pre-configured alerts for service health
+- **Data Retention**: 15 days of metrics data stored locally
+
+#### Grafana Dashboards
+- **Pre-configured Dashboard**: "Seneca Book Store Overview"
+- **Service Metrics**: Request rates, response times, error rates
+- **Business Metrics**: User registrations, orders, book views
+- **System Health**: Pod status, resource utilization
+
+#### Accessing Monitoring Tools
+```bash
+# Prometheus (metrics and alerting)
+open https://senecabooks.local/prometheus
+
+# Grafana (dashboards and visualization)
+open https://senecabooks.local/grafana
+# Login: admin / admin123
+```
+
+#### Custom Metrics Tracked
+- **User Service**: 
+  - `user_registrations_total`: Total user registrations
+  - `user_logins_total`: Total successful logins
+  - `user_login_failures_total`: Failed login attempts
+
+- **Catalog Service**:
+  - `catalog_books_browsed_total`: Book browsing activity
+  - `catalog_books_viewed_total`: Individual book views
+  - `catalog_search_queries_total`: Search activity
+
+- **Order Service**:
+  - `orders_created_total`: Orders created (by type: buy/rent)
+  - `orders_viewed_total`: Order detail views
+  - `orders_status_changes_total`: Order status updates
+
+#### Monitoring Service Health
+```bash
+# Check all service metrics endpoints
+curl https://senecabooks.local/api/user/metrics
+curl https://senecabooks.local/api/catalog/metrics
+curl https://senecabooks.local/api/order/metrics
+
+# Monitor Prometheus targets
+curl https://senecabooks.local/prometheus/api/v1/targets
+
+# Test Grafana API
+curl https://senecabooks.local/grafana/api/health
+```
+
+### Monitoring Deployment and RBAC
+- **Dedicated Service Account**: monitoring-service with cluster-wide read access
+- **ClusterRole**: Permissions for cross-namespace service discovery
+- **Security**: Monitoring services isolated with NetworkPolicies
+- **Persistence**: Prometheus data persisted across pod restarts
+
+### Alert Management
+- **Service Health Alerts**: Automatic alerts when services become unhealthy
+- **Performance Thresholds**: Alerts for high response times or error rates
+- **Resource Monitoring**: Alerts for high CPU/memory usage
+- **Custom Business Alerts**: Alerts for unusual business metric patterns
+
+---
+
 ## 📞 Support and Documentation
 
 ### Additional Resources
@@ -345,11 +536,20 @@ kubectl port-forward deployment/user-service 8001:8000 -n seneca-bookstore
 - **Kubernetes Dashboard**: `minikube dashboard`
 - **Application Logs**: `./deploy.sh --k8s logs <service>`
 - **Health Monitoring**: All services have `/health` endpoints
+- **Monitoring Access**: Prometheus and Grafana via Ingress routes
+- **Test Documentation**: Comprehensive test suite with `./test.sh --help`
+
+### Performance Optimization
+- **Resource Limits**: All pods have defined CPU/memory limits
+- **Health Checks**: Liveness and readiness probes for zero-downtime deployments
+- **Horizontal Scaling**: Services can be scaled using `kubectl scale`
+- **Monitoring Insights**: Use Grafana dashboards to identify performance bottlenecks
 
 ### Getting Help
-- Check application logs first
-- Verify service connectivity
-- Ensure proper configuration
-- Review resource usage
+- Check application logs first: `./deploy.sh logs <service>`
+- Verify service connectivity: `./test.sh --integration`
+- Test monitoring stack: `./test.sh --monitoring`
+- Review resource usage: Check Grafana dashboards
+- Run comprehensive tests: `./test.sh`
 
-This guide covers comprehensive deployment scenarios. For specific issues not covered here, check the service logs and Kubernetes events for detailed error messages.
+This guide covers comprehensive deployment scenarios including testing and monitoring. For specific issues not covered here, check the service logs, run the test suite, and review monitoring dashboards for detailed error messages and performance insights.

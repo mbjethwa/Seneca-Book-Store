@@ -1,19 +1,95 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Query
+from fastapi import FastAPI, Depends, HTTPException, status, Query, Request
+from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 import uvicorn
 from typing import Optional, List
+import logging
+import time
 
 # Import our modules
 from database import get_db, OrderType, OrderStatus
 from auth import get_current_user, get_book_info
 import crud
 import schemas
+from metrics import PrometheusMetrics
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger("order-service")
+
+# Initialize Prometheus metrics
+metrics = PrometheusMetrics(service_name="order")
 
 app = FastAPI(
     title="Order Service", 
     version="3.0.0", 
     description="Order processing service for book purchases and rentals"
 )
+
+@app.middleware("http")
+async def metrics_middleware(request: Request, call_next):
+    """Collect metrics for all requests."""
+    start_time = time.time()
+    
+    # Record request
+    metrics.requests_total.labels(
+        method=request.method,
+        endpoint=request.url.path,
+        service="order"
+    ).inc()
+    
+    response = await call_next(request)
+    
+    # Record response time
+    duration = time.time() - start_time
+    metrics.request_duration.labels(
+        method=request.method,
+        endpoint=request.url.path,
+        service="order"
+    ).observe(duration)
+    
+    # Record response status
+    metrics.responses_total.labels(
+        status_code=response.status_code,
+        service="order"
+    ).inc()
+    
+    return response
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Log all API requests with method, path, user, and response status."""
+    start_time = time.time()
+    
+    # Extract user info if available
+    user_info = "anonymous"
+    try:
+        if "authorization" in request.headers:
+            auth_header = request.headers["authorization"]
+            if auth_header.startswith("Bearer "):
+                user_info = "authenticated"
+    except Exception:
+        pass
+    
+    # Process request
+    response = await call_next(request)
+    
+    # Calculate processing time
+    process_time = time.time() - start_time
+    
+    # Log the request
+    logger.info(
+        f"Method: {request.method} | "
+        f"Path: {request.url.path} | "
+        f"User: {user_info} | "
+        f"Status: {response.status_code} | "
+        f"Time: {process_time:.3f}s"
+    )
+    
+    return response
 
 @app.get("/")
 async def health_check():
@@ -23,6 +99,11 @@ async def health_check():
 async def health():
     return {"status": "OK", "service": "order-service"}
 
+@app.get("/metrics")
+async def get_metrics():
+    """Expose Prometheus metrics."""
+    return PlainTextResponse(metrics.generate_metrics())
+
 @app.post("/orders", response_model=schemas.OrderResponse)
 async def create_order(
     order: schemas.OrderCreate,
@@ -30,6 +111,8 @@ async def create_order(
     db: Session = Depends(get_db)
 ):
     """Create a new order (buy or rent a book)."""
+    # Record order creation metric
+    metrics.orders_created.labels(order_type=order.order_type.value).inc()
     
     # Get book information from catalog service
     book_info = await get_book_info(order.book_id)
@@ -96,6 +179,9 @@ async def get_order(
     db: Session = Depends(get_db)
 ):
     """Get a specific order by ID."""
+    # Record order view metric
+    metrics.orders_viewed.inc()
+    
     order = crud.get_order_by_id(db, order_id=order_id, user_id=current_user["id"])
     if order is None:
         raise HTTPException(

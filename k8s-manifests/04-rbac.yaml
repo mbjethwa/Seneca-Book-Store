@@ -1,0 +1,200 @@
+---
+# ServiceAccount for user-service (needs access to secrets)
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: user-service-sa
+  namespace: seneca-bookstore
+  labels:
+    app: user-service
+    component: rbac
+
+---
+# ServiceAccount for catalog-service (read-only access)
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: catalog-service-sa
+  namespace: seneca-bookstore
+  labels:
+    app: catalog-service
+    component: rbac
+
+---
+# ServiceAccount for order-service (standard access)
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: order-service-sa
+  namespace: seneca-bookstore
+  labels:
+    app: order-service
+    component: rbac
+
+---
+# ServiceAccount for frontend-service (read-only access)
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: frontend-service-sa
+  namespace: seneca-bookstore
+  labels:
+    app: frontend-service
+    component: rbac
+
+---
+# Role for user-service: access to secrets
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: seneca-bookstore
+  name: user-service-role
+  labels:
+    app: user-service
+    component: rbac
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+
+---
+# Role for catalog-service: read-only access
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: seneca-bookstore
+  name: catalog-service-role
+  labels:
+    app: catalog-service
+    component: rbac
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["get", "list"]
+
+---
+# Role for order-service: standard service access
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: seneca-bookstore
+  name: order-service-role
+  labels:
+    app: order-service
+    component: rbac
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["get", "list"]
+
+---
+# Role for frontend-service: minimal read access
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: seneca-bookstore
+  name: frontend-service-role
+  labels:
+    app: frontend-service
+    component: rbac
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["get", "list"]
+
+---
+# RoleBinding for user-service
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: user-service-binding
+  namespace: seneca-bookstore
+  labels:
+    app: user-service
+    component: rbac
+subjects:
+- kind: ServiceAccount
+  name: user-service-sa
+  namespace: seneca-bookstore
+roleRef:
+  kind: Role
+  name: user-service-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# RoleBinding for catalog-service
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: catalog-service-binding
+  namespace: seneca-bookstore
+  labels:
+    app: catalog-service
+    component: rbac
+subjects:
+- kind: ServiceAccount
+  name: catalog-service-sa
+  namespace: seneca-bookstore
+roleRef:
+  kind: Role
+  name: catalog-service-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# RoleBinding for order-service
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: order-service-binding
+  namespace: seneca-bookstore
+  labels:
+    app: order-service
+    component: rbac
+subjects:
+- kind: ServiceAccount
+  name: order-service-sa
+  namespace: seneca-bookstore
+roleRef:
+  kind: Role
+  name: order-service-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# RoleBinding for frontend-service
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: frontend-service-binding
+  namespace: seneca-bookstore
+  labels:
+    app: frontend-service
+    component: rbac
+subjects:
+- kind: ServiceAccount
+  name: frontend-service-sa
+  namespace: seneca-bookstore
+roleRef:
+  kind: Role
+  name: frontend-service-role
+  apiGroup: rbac.authorization.k8s.io

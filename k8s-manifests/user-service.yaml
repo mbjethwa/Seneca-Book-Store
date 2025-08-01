@@ -15,8 +15,9 @@ spec:
     metadata:
       labels:
         app: user-service
-        component: backend
+        component: api
     spec:
+      serviceAccountName: user-service-sa
       containers:
       - name: user-service
         image: localhost:5000/user-service:latest

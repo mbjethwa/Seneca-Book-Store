@@ -1,0 +1,218 @@
+---
+# Default deny all traffic in the namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: seneca-bookstore
+  labels:
+    component: security
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+
+---
+# Allow ingress controller to reach frontend service
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-frontend
+  namespace: seneca-bookstore
+  labels:
+    component: security
+spec:
+  podSelector:
+    matchLabels:
+      app: frontend-service
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 80
+  # Allow from anywhere in the cluster for ingress
+  - from: []
+    ports:
+    - protocol: TCP
+      port: 80
+
+---
+# Allow ingress controller to reach API services
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-apis
+  namespace: seneca-bookstore
+  labels:
+    component: security
+spec:
+  podSelector:
+    matchLabels:
+      component: api
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8000
+  # Allow from anywhere in the cluster for ingress
+  - from: []
+    ports:
+    - protocol: TCP
+      port: 8000
+
+---
+# Allow internal communication between services
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-internal-communication
+  namespace: seneca-bookstore
+  labels:
+    component: security
+spec:
+  podSelector:
+    matchLabels:
+      component: api
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow traffic from other services in the namespace
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: seneca-bookstore
+    ports:
+    - protocol: TCP
+      port: 8000
+  egress:
+  # Allow traffic to other services in the namespace
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: seneca-bookstore
+    ports:
+    - protocol: TCP
+      port: 8000
+  # Allow DNS resolution
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+
+---
+# Allow frontend to communicate with backend APIs
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend-to-apis
+  namespace: seneca-bookstore
+  labels:
+    component: security
+spec:
+  podSelector:
+    matchLabels:
+      app: frontend-service
+  policyTypes:
+  - Egress
+  egress:
+  # Allow communication to backend APIs
+  - to:
+    - podSelector:
+        matchLabels:
+          component: api
+    ports:
+    - protocol: TCP
+      port: 8000
+  # Allow DNS resolution
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+
+---
+# Allow catalog service to communicate with user service
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-catalog-to-user
+  namespace: seneca-bookstore
+  labels:
+    component: security
+spec:
+  podSelector:
+    matchLabels:
+      app: catalog-service
+  policyTypes:
+  - Egress
+  egress:
+  # Allow communication to user service
+  - to:
+    - podSelector:
+        matchLabels:
+          app: user-service
+    ports:
+    - protocol: TCP
+      port: 8000
+  # Allow DNS resolution
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+
+---
+# Allow order service to communicate with user and catalog services
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-order-to-dependencies
+  namespace: seneca-bookstore
+  labels:
+    component: security
+spec:
+  podSelector:
+    matchLabels:
+      app: order-service
+  policyTypes:
+  - Egress
+  egress:
+  # Allow communication to user service
+  - to:
+    - podSelector:
+        matchLabels:
+          app: user-service
+    ports:
+    - protocol: TCP
+      port: 8000
+  # Allow communication to catalog service
+  - to:
+    - podSelector:
+        matchLabels:
+          app: catalog-service
+    ports:
+    - protocol: TCP
+      port: 8000
+  # Allow DNS resolution
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53

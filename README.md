@@ -88,6 +88,42 @@ Seneca Book Store is a comprehensive e-commerce platform built with microservice
 - ✅ **Automated Deployment**: Comprehensive scripts for deploy and shutdown
 - ✅ **Health Monitoring**: Liveness and readiness probes for all services
 
+### Phase 7: Security Operations ✅
+- ✅ **Comprehensive Logging**: All API calls logged with method, path, user, and status code
+- ✅ **RBAC (Role-Based Access Control)**: 
+  - user-service: Access to secrets and ConfigMaps
+  - catalog-service: Read-only access with limited permissions
+  - order-service: Standard service access permissions
+  - frontend-service: Minimal read-only access
+- ✅ **Network Policies**: 
+  - Default deny-all traffic policy
+  - Allow internal communication between services only
+  - Block external access except via Ingress controller
+  - Service-specific communication rules
+- ✅ **Security Headers**: JWT token validation and secure communication
+- ✅ **Service Accounts**: Dedicated service accounts for each microservice
+
+### Phase 8: Testing and Monitoring ✅
+- ✅ **Comprehensive Test Suite**: 
+  - pytest unit tests for authentication endpoints (/register, /login)
+  - Load testing script for high-traffic endpoints (/books, /orders)
+  - Integration tests for complete user workflows
+  - Performance validation and concurrent request handling
+- ✅ **Enterprise Monitoring Stack**: 
+  - **Prometheus**: Complete metrics collection with custom dashboards
+  - **Grafana**: Pre-configured dashboards for service health monitoring
+  - **Service Metrics**: Request duration, response status, and business metrics
+  - **Real-time Alerts**: Service health and performance alerts
+- ✅ **Production Observability**:
+  - Custom metrics for user registrations, logins, book browsing, and order creation
+  - Request/response tracking across all microservices
+  - Performance monitoring with histogram metrics
+  - Health check endpoints with monitoring integration
+- ✅ **Automated Testing Pipeline**:
+  - Unified test runner script (`test.sh`) for all test types
+  - Support for both Docker and Kubernetes deployments
+  - Comprehensive test reporting and analytics
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -139,12 +175,91 @@ cd "Seneca Book Store"
 ```
 
 ### 3. Access the Application
-- **Production (K8s)**: https://senecabooks.local
+- **Production (K8s)**: https://senecabooks.local (Secure HTTPS with TLS)
 - **Development**: http://localhost:3000
 - **API Documentation**: 
   - User Service: https://senecabooks.local/api/user/docs
   - Catalog Service: https://senecabooks.local/api/catalog/docs
   - Order Service: https://senecabooks.local/api/order/docs
+- **Monitoring & Observability**:
+  - **Prometheus**: https://senecabooks.local/prometheus
+  - **Grafana**: https://senecabooks.local/grafana (admin/admin123)
+
+## 🧪 Testing & Quality Assurance
+
+### Comprehensive Testing Suite
+```bash
+# Run all tests
+./test.sh
+
+# Run specific test types
+./test.sh --unit-only      # Unit tests only
+./test.sh --load-only      # Load tests only
+./test.sh --integration    # Integration tests only
+./test.sh --monitoring     # Test monitoring stack
+
+# Target specific deployment
+./test.sh k8s             # Test Kubernetes deployment
+./test.sh docker          # Test Docker deployment
+```
+
+### Test Coverage
+- **📝 Unit Tests**: pytest suite for authentication endpoints
+- **⚡ Load Testing**: Concurrent request testing for high-traffic endpoints
+- **🔗 Integration Tests**: End-to-end user workflow validation
+- **📊 Performance Tests**: Response time and throughput validation
+- **🎯 Monitoring Tests**: Prometheus/Grafana health validation
+
+### Load Testing Features
+- **Concurrent Users**: Simulate multiple users simultaneously
+- **Mixed Workloads**: Test both /books and /orders endpoints
+- **Performance Analytics**: Detailed response time statistics
+- **Configurable Load**: Adjustable request counts and duration
+
+## 📊 Monitoring & Observability
+
+### Enterprise Monitoring Stack
+- **📈 Prometheus Metrics**: 
+  - Request/response tracking across all services
+  - Custom business metrics (registrations, orders, views)
+  - Performance metrics with histogram data
+  - Service health and availability monitoring
+
+- **📊 Grafana Dashboards**: 
+  - Pre-configured "Seneca Book Store Overview" dashboard
+  - Real-time service performance visualization
+  - Alert thresholds for critical metrics
+  - Business KPI tracking
+
+### Monitoring Access
+- **Prometheus**: https://senecabooks.local/prometheus
+- **Grafana**: https://senecabooks.local/grafana
+  - **Username**: admin
+  - **Password**: admin123
+- **Service Metrics**: Each service exposes `/metrics` endpoint
+
+### Key Metrics Tracked
+- **User Service**: Registrations, logins, authentication attempts
+- **Catalog Service**: Book browsing, search queries, book views
+- **Order Service**: Order creation, order views, order types (buy/rent)
+- **System Metrics**: Request duration, response status codes, error rates
+
+## 🔐 Security Features
+
+### Comprehensive Security Implementation
+- **🔒 HTTPS/TLS**: All traffic encrypted with automatic certificate management
+- **🛡️ RBAC**: Role-based access control with dedicated service accounts
+- **🌐 Network Policies**: Zero-trust network security with default deny-all
+- **📝 Audit Logging**: Complete API request logging with user tracking
+- **🔑 JWT Authentication**: Secure token-based authentication system
+- **🔐 Secrets Management**: Kubernetes secrets for sensitive configuration
+
+### Security Architecture
+```
+External Traffic → Ingress (TLS) → Network Policies → RBAC → Services
+    HTTPS            Certificate      Zero-Trust     Service      API
+  Encryption         Management       Network        Accounts   Logging
+```
 
 ## 🎨 Frontend Features
 

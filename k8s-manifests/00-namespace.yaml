@@ -4,3 +4,5 @@ metadata:
   name: seneca-bookstore
   labels:
     name: seneca-bookstore
+    component: security
+    app: bookstore

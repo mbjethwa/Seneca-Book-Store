@@ -1,0 +1,96 @@
+---
+# ServiceAccount for monitoring services (Prometheus, Grafana)
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: monitoring-sa
+  namespace: seneca-bookstore
+  labels:
+    app: monitoring
+    component: rbac
+
+---
+# ClusterRole for monitoring services to access cluster metrics
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: monitoring-cluster-role
+  labels:
+    app: monitoring
+    component: rbac
+rules:
+- apiGroups: [""]
+  resources:
+    - nodes
+    - nodes/proxy
+    - services
+    - endpoints
+    - pods
+    - ingresses
+    - configmaps
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["extensions"]
+  resources:
+    - ingresses
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["networking.k8s.io"]
+  resources:
+    - ingresses
+  verbs: ["get", "list", "watch"]
+- nonResourceURLs: ["/metrics", "/metrics/cadvisor"]
+  verbs: ["get"]
+
+---
+# ClusterRoleBinding for monitoring services
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: monitoring-cluster-binding
+  labels:
+    app: monitoring
+    component: rbac
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: monitoring-cluster-role
+subjects:
+- kind: ServiceAccount
+  name: monitoring-sa
+  namespace: seneca-bookstore
+
+---
+# Role for monitoring services within the namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: seneca-bookstore
+  name: monitoring-role
+  labels:
+    app: monitoring
+    component: rbac
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets", "pods", "services", "endpoints"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets"]
+  verbs: ["get", "list", "watch"]
+
+---
+# RoleBinding for monitoring services within the namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: monitoring-binding
+  namespace: seneca-bookstore
+  labels:
+    app: monitoring
+    component: rbac
+subjects:
+- kind: ServiceAccount
+  name: monitoring-sa
+  namespace: seneca-bookstore
+roleRef:
+  kind: Role
+  name: monitoring-role
+  apiGroup: rbac.authorization.k8s.io

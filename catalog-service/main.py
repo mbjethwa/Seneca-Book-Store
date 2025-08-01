@@ -1,19 +1,97 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Query
+from fastapi import FastAPI, Depends, HTTPException, status, Query, Request
+from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 import uvicorn
 from typing import Optional
+import logging
+import time
 
 # Import our modules
 from database import get_db
 from auth import get_admin_user, get_current_user
 import crud
 import schemas
+from metrics import PrometheusMetrics
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger("catalog-service")
+
+# Initialize Prometheus metrics
+metrics = PrometheusMetrics(service_name="catalog")
 
 app = FastAPI(
     title="Catalog Service", 
     version="2.0.0", 
     description="Book catalog and inventory management service"
 )
+
+@app.middleware("http")
+async def metrics_middleware(request: Request, call_next):
+    """Collect metrics for all requests."""
+    start_time = time.time()
+    
+    # Record request
+    metrics.requests_total.labels(
+        method=request.method,
+        endpoint=request.url.path,
+        service="catalog"
+    ).inc()
+    
+    response = await call_next(request)
+    
+    # Record response time
+    duration = time.time() - start_time
+    metrics.request_duration.labels(
+        method=request.method,
+        endpoint=request.url.path,
+        service="catalog"
+    ).observe(duration)
+    
+    # Record response status
+    metrics.responses_total.labels(
+        status_code=response.status_code,
+        service="catalog"
+    ).inc()
+    
+    return response
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Log all API requests with method, path, user, and response status."""
+    start_time = time.time()
+    
+    # Extract user info if available
+    user_info = "anonymous"
+    try:
+        if "authorization" in request.headers:
+            auth_header = request.headers["authorization"]
+            if auth_header.startswith("Bearer "):
+                # For catalog service, we'll just note "authenticated" without verifying
+                # since the actual verification happens in the auth middleware
+                user_info = "authenticated"
+    except Exception:
+        pass
+    
+    # Process request
+    response = await call_next(request)
+    
+    # Calculate processing time
+    process_time = time.time() - start_time
+    
+    # Log the request
+    logger.info(
+        f"Method: {request.method} | "
+        f"Path: {request.url.path} | "
+        f"User: {user_info} | "
+        f"Status: {response.status_code} | "
+        f"Time: {process_time:.3f}s"
+    )
+    
+    return response
 
 @app.get("/")
 async def health_check():
@@ -22,6 +100,11 @@ async def health_check():
 @app.get("/health")
 async def health():
     return {"status": "OK", "service": "catalog-service"}
+
+@app.get("/metrics")
+async def get_metrics():
+    """Expose Prometheus metrics."""
+    return PlainTextResponse(metrics.generate_metrics())
 
 @app.get("/books", response_model=schemas.BookListResponse)
 async def get_books(
@@ -36,6 +119,9 @@ async def get_books(
     db: Session = Depends(get_db)
 ):
     """Get list of books with optional filtering and pagination."""
+    # Record book browsing metric
+    metrics.books_browsed.inc()
+    
     skip = (page - 1) * size
     
     books, total = crud.get_books(
@@ -60,6 +146,9 @@ async def get_books(
 @app.get("/books/{book_id}", response_model=schemas.BookResponse)
 async def get_book(book_id: int, db: Session = Depends(get_db)):
     """Get a specific book by ID."""
+    # Record book view metric
+    metrics.books_viewed.inc()
+    
     book = crud.get_book_by_id(db, book_id=book_id)
     if book is None:
         raise HTTPException(

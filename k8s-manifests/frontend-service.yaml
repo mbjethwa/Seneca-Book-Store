@@ -17,6 +17,7 @@ spec:
         app: frontend-service
         component: frontend
     spec:
+      serviceAccountName: frontend-service-sa
       containers:
       - name: frontend-service
         image: localhost:5000/frontend-service:latest

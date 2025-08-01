@@ -15,8 +15,9 @@ spec:
     metadata:
       labels:
         app: order-service
-        component: backend
+        component: api
     spec:
+      serviceAccountName: order-service-sa
       containers:
       - name: order-service
         image: localhost:5000/order-service:latest
