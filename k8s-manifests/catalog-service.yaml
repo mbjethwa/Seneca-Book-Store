@@ -2,8 +2,10 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: catalog-service
+  namespace: seneca-bookstore
   labels:
     app: catalog-service
+    component: backend
 spec:
   replicas: 2
   selector:
@@ -13,21 +15,35 @@ spec:
     metadata:
       labels:
         app: catalog-service
+        component: backend
     spec:
       containers:
       - name: catalog-service
-        image: catalog-service:latest
+        image: localhost:5000/catalog-service:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 8000
+          name: http
         env:
         - name: PORT
           value: "8000"
         - name: DATABASE_URL
-          value: "sqlite:///./catalog.db"
+          value: "sqlite:///data/catalog.db"
         - name: USER_SERVICE_URL
-          value: "http://user-service:8000"
+          valueFrom:
+            configMapKeyRef:
+              name: bookstore-config
+              key: USER_SERVICE_URL
+        - name: CORS_ORIGINS
+          valueFrom:
+            configMapKeyRef:
+              name: bookstore-config
+              key: CORS_ORIGINS
         - name: ADMIN_EMAILS
           value: "admin@seneca.ca,admin@example.com"
+        volumeMounts:
+        - name: data-storage
+          mountPath: /data
         resources:
           limits:
             cpu: 500m
@@ -47,16 +63,25 @@ spec:
             port: 8000
           initialDelaySeconds: 5
           periodSeconds: 5
+      volumes:
+      - name: data-storage
+        persistentVolumeClaim:
+          claimName: bookstore-data-pvc
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: catalog-service
+  namespace: seneca-bookstore
+  labels:
+    app: catalog-service
+    component: backend
 spec:
   selector:
     app: catalog-service
   ports:
-    - protocol: TCP
-      port: 8000
-      targetPort: 8000
+  - name: http
+    protocol: TCP
+    port: 8000
+    targetPort: 8000
   type: ClusterIP

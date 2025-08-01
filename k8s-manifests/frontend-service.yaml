@@ -2,8 +2,10 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: frontend-service
+  namespace: seneca-bookstore
   labels:
     app: frontend-service
+    component: frontend
 spec:
   replicas: 2
   selector:
@@ -13,25 +15,56 @@ spec:
     metadata:
       labels:
         app: frontend-service
+        component: frontend
     spec:
       containers:
       - name: frontend-service
-        image: frontend-service:latest
+        image: localhost:5000/frontend-service:latest
+        imagePullPolicy: Always
         ports:
-        - containerPort: 3000
+        - containerPort: 80
+          name: http
         env:
-        - name: PORT
-          value: "3000"
+        - name: REACT_APP_USER_SERVICE_URL
+          value: "https://senecabooks.local/api/user"
+        - name: REACT_APP_CATALOG_SERVICE_URL
+          value: "https://senecabooks.local/api/catalog"
+        - name: REACT_APP_ORDER_SERVICE_URL
+          value: "https://senecabooks.local/api/order"
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 50m
+            memory: 64Mi
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: frontend-service
+  namespace: seneca-bookstore
+  labels:
+    app: frontend-service
+    component: frontend
 spec:
   selector:
     app: frontend-service
   ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 3000
-  type: LoadBalancer
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: 80
+  type: ClusterIP

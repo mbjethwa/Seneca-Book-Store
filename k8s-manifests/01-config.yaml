@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bookstore-config
+  namespace: seneca-bookstore
+data:
+  # Database configurations
+  USER_DB_PATH: "/data/users.db"
+  CATALOG_DB_PATH: "/data/catalog.db"
+  ORDER_DB_PATH: "/data/orders.db"
+  
+  # Service configurations
+  ACCESS_TOKEN_EXPIRE_MINUTES: "60"
+  CORS_ORIGINS: "https://senecabooks.local"
+  
+  # Service URLs for inter-service communication
+  USER_SERVICE_URL: "http://user-service:8000"
+  CATALOG_SERVICE_URL: "http://catalog-service:8000"
+  ORDER_SERVICE_URL: "http://order-service:8000"
+  
+  # Application settings
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "INFO"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bookstore-secrets
+  namespace: seneca-bookstore
+type: Opaque
+data:
+  # JWT secret key (base64 encoded)
+  jwt-secret: c2VuZWNhLWJvb2tzdG9yZS1qd3Qtc2VjcmV0LWtleS0yMDI1LXByb2R1Y3Rpb24=
+stringData:
+  # Plain text secret for easier management
+  SECRET_KEY: "seneca-bookstore-jwt-secret-key-2025-production"

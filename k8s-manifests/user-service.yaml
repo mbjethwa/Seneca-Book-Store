@@ -2,8 +2,10 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: user-service
+  namespace: seneca-bookstore
   labels:
     app: user-service
+    component: backend
 spec:
   replicas: 2
   selector:
@@ -13,21 +15,38 @@ spec:
     metadata:
       labels:
         app: user-service
+        component: backend
     spec:
       containers:
       - name: user-service
-        image: user-service:latest
+        image: localhost:5000/user-service:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 8000
+          name: http
         env:
         - name: PORT
           value: "8000"
         - name: SECRET_KEY
-          value: "your-super-secret-jwt-key-change-in-production-please"
+          valueFrom:
+            secretKeyRef:
+              name: bookstore-secrets
+              key: SECRET_KEY
         - name: DATABASE_URL
-          value: "sqlite:///./users.db"
+          value: "sqlite:///data/users.db"
         - name: ACCESS_TOKEN_EXPIRE_MINUTES
-          value: "60"
+          valueFrom:
+            configMapKeyRef:
+              name: bookstore-config
+              key: ACCESS_TOKEN_EXPIRE_MINUTES
+        - name: CORS_ORIGINS
+          valueFrom:
+            configMapKeyRef:
+              name: bookstore-config
+              key: CORS_ORIGINS
+        volumeMounts:
+        - name: data-storage
+          mountPath: /data
         resources:
           limits:
             cpu: 500m
@@ -47,16 +66,25 @@ spec:
             port: 8000
           initialDelaySeconds: 5
           periodSeconds: 5
+      volumes:
+      - name: data-storage
+        persistentVolumeClaim:
+          claimName: bookstore-data-pvc
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: user-service
+  namespace: seneca-bookstore
+  labels:
+    app: user-service
+    component: backend
 spec:
   selector:
     app: user-service
   ports:
-    - protocol: TCP
-      port: 8000
-      targetPort: 8000
+  - name: http
+    protocol: TCP
+    port: 8000
+    targetPort: 8000
   type: ClusterIP

@@ -78,7 +78,15 @@ Seneca Book Store is a comprehensive e-commerce platform built with microservice
 - ✅ **Frontend Service**: Multi-stage build with Node.js + Nginx
 - ✅ **Container Orchestration**: Complete Docker Compose setup
 - ✅ **Production Ready**: Health checks, proper networking, and environment configuration
-- ✅ **Kubernetes Support**: Full K8s deployment manifests for scalable deployment
+
+### Phase 6: Kubernetes Setup ✅
+- ✅ **Minikube Deployment**: Complete Kubernetes orchestration on Minikube
+- ✅ **Service Mesh**: Deployments and Services for all microservices
+- ✅ **Configuration Management**: ConfigMaps and Secrets for environment variables
+- ✅ **Persistent Storage**: PVC/PV for database persistence across restarts
+- ✅ **Ingress with TLS**: HTTPS access via `https://senecabooks.local` with cert-manager
+- ✅ **Automated Deployment**: Comprehensive scripts for deploy and shutdown
+- ✅ **Health Monitoring**: Liveness and readiness probes for all services
 
 ## 🚀 Quick Start
 
@@ -86,42 +94,57 @@ Seneca Book Store is a comprehensive e-commerce platform built with microservice
 - Node.js 16+ and npm
 - Python 3.8+
 - Docker and Docker Compose
+- **Kubernetes**: kubectl, minikube, helm (for K8s deployment)
 - Git
 
-### 1. Clone and Setup
+## 🚀 Quick Start
+
+The project now includes a **unified deployment script** that supports both Docker Compose and Kubernetes deployments.
+
+### Option 1: Kubernetes Deployment (Recommended)
 ```bash
 git clone <repository-url>
 cd "Seneca Book Store"
 
-# Install frontend dependencies
-cd frontend-service
-npm install
-cd ..
+# Deploy everything on Minikube with one command
+./deploy.sh --k8s deploy
+
+# Access the application
+open https://senecabooks.local
 ```
 
-### 2. Start All Services
+### Option 2: Docker Compose (Development)
 ```bash
-# Make deploy script executable
-chmod +x deploy.sh
+git clone <repository-url>
+cd "Seneca Book Store"
 
-# Start all services with Docker Compose
-./deploy.sh start
+# Deploy with Docker Compose only
+./deploy.sh --docker deploy
 
-# Or start services individually for development
-./deploy.sh dev
+# Access the application
+open http://localhost:3000
 ```
 
-### 3. Initialize Sample Data
+### Option 3: Both Deployments (Full Testing)
 ```bash
-# Create admin user and sample books
-./deploy.sh seed
+git clone <repository-url>
+cd "Seneca Book Store"
+
+# Deploy with both Docker Compose and Kubernetes
+./deploy.sh --both deploy
+
+# Access applications:
+# - Docker Compose: http://localhost:3000
+# - Kubernetes: https://senecabooks.local
 ```
 
-### 4. Access the Application
-- **Frontend**: http://localhost:3000
-- **User Service**: http://localhost:8001/docs
-- **Catalog Service**: http://localhost:8002/docs
-- **Order Service**: http://localhost:8003/docs
+### 3. Access the Application
+- **Production (K8s)**: https://senecabooks.local
+- **Development**: http://localhost:3000
+- **API Documentation**: 
+  - User Service: https://senecabooks.local/api/user/docs
+  - Catalog Service: https://senecabooks.local/api/catalog/docs
+  - Order Service: https://senecabooks.local/api/order/docs
 
 ## 🎨 Frontend Features
 
@@ -229,56 +252,89 @@ After running `./deploy.sh seed`:
 - **Password**: user123
 - **Access**: Book catalog + order management
 
-## 🐳 Docker Deployment
+## ☸️ Comprehensive Deployment Script
 
-### Development Mode
+The project includes a single, powerful deployment script that supports multiple deployment modes:
+
+### Deployment Modes
 ```bash
-# Start all services for development
-./deploy.sh dev
+# Kubernetes only (production)
+./deploy.sh --k8s deploy
 
-# View logs
-./deploy.sh logs
+# Docker Compose only (development)
+./deploy.sh --docker deploy  
 
-# Stop all services
-./deploy.sh stop
+# Both deployments (testing)
+./deploy.sh --both deploy
 ```
 
-### Production Mode
+### Management Commands
 ```bash
-# Build and start production containers
-./deploy.sh start
-
-# Scale services
-./deploy.sh scale
-
-# Health check all services
-./deploy.sh health
-```
-
-## ☸️ Kubernetes Deployment
-
-```bash
-# Deploy to Kubernetes
-kubectl apply -f k8s-manifests/
-
 # Check deployment status
-kubectl get pods
+./deploy.sh status
 
-# Access via port forwarding
-kubectl port-forward service/frontend-service 3000:3000
+# View application logs
+./deploy.sh --k8s logs user-service
+./deploy.sh --docker logs user-service
+
+# Build images only
+./deploy.sh build
+
+# Seed initial data
+./deploy.sh --docker seed
+./deploy.sh --k8s seed
+
+# Clean up deployments
+./deploy.sh cleanup
 ```
 
-## 🧪 Testing
-
-### Backend Testing
+### Kubernetes Specific Commands
 ```bash
-# Test all services
-./deploy.sh test
+# Access Kubernetes dashboard
+minikube dashboard
 
-# Test specific service
-cd user-service && python -m pytest
-cd catalog-service && python -m pytest
-cd order-service && python -m pytest
+# View all resources
+kubectl get all -n seneca-bookstore
+
+# Port forward for direct access
+kubectl port-forward service/user-service 8001:8000 -n seneca-bookstore
+
+# Execute commands in pods
+kubectl exec -it deployment/user-service -n seneca-bookstore -- bash
+```
+
+### Shutdown Options
+```bash
+# Clean up Docker Compose deployment
+./deploy.sh --docker cleanup
+
+# Clean up Kubernetes deployment  
+./deploy.sh --k8s cleanup
+
+# Clean up both deployments
+./deploy.sh cleanup
+
+# Use dedicated shutdown script for advanced options
+./shutdown.sh soft    # Scale down, preserve everything
+./shutdown.sh app     # Remove application (keep Minikube)
+./shutdown.sh full    # Stop Minikube, preserve data
+./shutdown.sh clean   # Remove everything
+```
+
+## 🧪 Testing & Development
+
+### Unified Testing Commands
+```bash
+# Check deployment status across all modes
+./deploy.sh status
+
+# View logs from either deployment
+./deploy.sh --docker logs user-service
+./deploy.sh --k8s logs user-service
+
+# Test deployments
+./deploy.sh --docker seed    # Seed Docker Compose data
+./deploy.sh --k8s seed       # Seed Kubernetes data
 ```
 
 ### Frontend Testing
@@ -323,7 +379,8 @@ Seneca Book Store/
 ├── catalog-service/          # Book management service
 ├── order-service/            # Order processing service
 ├── k8s-manifests/           # Kubernetes deployment files
-├── deploy.sh                # Deployment script
+├── deploy.sh               # Comprehensive deployment script
+├── shutdown.sh             # Advanced shutdown script
 └── README.md               # This file
 ```
 
