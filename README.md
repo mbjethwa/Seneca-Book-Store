@@ -1,334 +1,360 @@
-# Seneca Book Store - Microservices Architecture
+# 📚 Seneca Book Store - Complete Microservices Application
 
-A modern microservices-based bookstore application built with FastAPI backend services and React frontend.
+A modern, full-stack microservices application for managing a book store with authentication, catalog management, order processing, and a beautiful React frontend.
 
-## Architecture Overview
+## 🎯 Project Overview
+
+Seneca Book Store is a comprehensive e-commerce platform built with microservices architecture, featuring:
+- **User Authentication & Management**
+- **Book Catalog & Inventory Management**
+- **Order Processing (Buy/Rent)**
+- **Modern React Frontend with Admin Dashboard**
+- **Microservices with FastAPI**
+- **JWT Authentication**
+- **Docker & Kubernetes Deployment**
+
+## 🏗️ Architecture
 
 ```
-├── user-service/          # User management service (FastAPI)
-├── catalog-service/       # Book catalog service (FastAPI)
-├── order-service/         # Order management service (FastAPI)
-├── frontend-service/      # React frontend application
-└── k8s-manifests/        # Kubernetes deployment manifests
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│  Frontend       │    │  User Service   │    │ Catalog Service │
+│  (React)        │◄──►│  (Auth & JWT)   │◄──►│ (Books & Admin) │
+│  Port: 3000     │    │  Port: 8001     │    │  Port: 8002     │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         │                       └───────────────────────┼──────┐
+         │                                               │      │
+         └─────────────────────────────────────────────┐ │      │
+                                                       ▼ ▼      ▼
+                                              ┌─────────────────┐
+                                              │  Order Service  │
+                                              │ (Buy/Rent Logic)│
+                                              │  Port: 8003     │
+                                              └─────────────────┘
 ```
 
-## Services
+## ✨ Features Implemented
 
-### Backend Services (FastAPI)
+### Phase 0: Project Structure ✅
+- ✅ Microservices architecture with FastAPI backends
+- ✅ React frontend application
+- ✅ Docker containerization
+- ✅ Kubernetes deployment manifests
+- ✅ CI/CD deployment scripts
 
-#### User Service (Phase 1 - Complete ✅)
-- **Authentication & User Management**
-- **Endpoints:**
-  - `POST /register` - User registration with email/password
-  - `POST /login` - User login returning JWT token
-  - `GET /me` - Get current user information (requires authentication)
-  - `GET /health` - Service health check
-- **Features:**
-  - Password hashing with bcrypt
-  - JWT token authentication (1-hour expiration)
-  - SQLite database with SQLAlchemy ORM
-  - User registration validation
+### Phase 1: User Service (Authentication) ✅
+- ✅ JWT-based authentication system
+- ✅ User registration and login endpoints
+- ✅ Password hashing with bcrypt
+- ✅ Protected routes with token validation
+- ✅ SQLite database with SQLAlchemy ORM
 
-#### Catalog Service (Phase 2 - Complete ✅)
-- **Book Inventory & Catalog Management**
-- **Endpoints:**
-  - `GET /books` - List books with search/filter/pagination
-  - `GET /books/{id}` - Get specific book details
-  - `POST /books` - Add new book (admin only)
-  - `PUT /books/{id}` - Update book (admin only)
-  - `DELETE /books/{id}` - Delete book (admin only)
-  - `GET /categories` - Get all book categories
-  - `GET /authors` - Get all authors
-  - `POST /seed-data` - Create sample data (admin only)
-  - `GET /health` - Service health check
-- **Features:**
-  - Advanced search and filtering (title, author, category, price range)
-  - Pagination support
-  - Admin-only book management
-  - ISBN validation and duplicate prevention
-  - Book availability and stock tracking
-  - SQLite database with SQLAlchemy ORM
+### Phase 2: Catalog Service (Books & Inventory) ✅
+- ✅ Full CRUD operations for book management
+- ✅ Admin-only access with User Service integration
+- ✅ Advanced search and filtering capabilities
+- ✅ Inventory tracking with stock management
+- ✅ Both purchase and rental pricing systems
 
-#### Order Service (Phase 3 - Complete ✅)
-- **Order Processing & Rental Management**
-- **Endpoints:**
-  - `POST /orders` - Place order (buy or rent book)
-  - `GET /orders` - List user's orders with filtering/pagination
-  - `GET /orders/{id}` - Get specific order details
-  - `PUT /orders/{id}/status` - Update order status
-  - `POST /orders/{id}/return` - Return rental order
-  - `GET /orders/summary/me` - Get user's order summary
-  - `GET /orders/rentals/active` - Get active rental orders
-  - `GET /orders/rentals/overdue` - Get overdue rentals
-  - `POST /seed-orders` - Create sample orders (development)
-  - `GET /health` - Service health check
-- **Features:**
-  - Buy or rent books with different pricing
-  - Rental duration management with return tracking
-  - Order history and status tracking
-  - Stock validation via Catalog Service
-  - User authentication via User Service
-  - Automatic rental period calculation
-  - Overdue rental detection
-  - SQLite database with SQLAlchemy ORM
+### Phase 3: Order Service (Buy or Rent) ✅
+- ✅ Complete order processing system
+- ✅ Buy or rent functionality with different pricing
+- ✅ User authentication integration
+- ✅ Real-time stock validation via Catalog Service
+- ✅ Rental management with return tracking
 
-All backend services:
-- Run on port 8000
-- Include health check endpoints (`/` and `/health`)
-- Built with FastAPI and uvicorn
-- Containerized with Docker
+### Phase 4: Frontend (React) ✅
+- ✅ **Modern, Responsive UI** with warm color scheme
+- ✅ **Authentication Flow** - Login/Register with JWT
+- ✅ **Book Catalog** - Browse, search, and filter books
+- ✅ **Order Management** - Buy/Rent books with real-time updates
+- ✅ **Admin Dashboard** - Complete book and order management
+- ✅ **Order History** - Track purchases and rentals
+- ✅ **Rental Returns** - Easy book return functionality
+- ✅ **Professional Design** - Google Fonts, animations, and modern UI components
 
-### Frontend Service (React)
-- Modern React application
-- Serves the user interface
-- Runs on port 3000 (development) / 80 (production)
-- Built with Create React App
+### Phase 5: Dockerization ✅
+- ✅ **Backend Services**: Optimized Dockerfiles with `python:3.11-slim`
+- ✅ **Frontend Service**: Multi-stage build with Node.js + Nginx
+- ✅ **Container Orchestration**: Complete Docker Compose setup
+- ✅ **Production Ready**: Health checks, proper networking, and environment configuration
+- ✅ **Kubernetes Support**: Full K8s deployment manifests for scalable deployment
 
-## Quick Start
+## 🚀 Quick Start
 
 ### Prerequisites
-- Docker & Docker Compose
-- Node.js 18+ (for local development)
-- Python 3.11+ (for local development)
-- kubectl (for Kubernetes deployment)
+- Node.js 16+ and npm
+- Python 3.8+
+- Docker and Docker Compose
+- Git
 
-### Local Development
-
-1. **Clone and setup:**
-   ```bash
-   git clone <repository-url>
-   cd "Seneca Book Store"
-   ```
-
-2. **Run individual services:**
-
-   **Backend Services:**
-   ```bash
-   # User Service
-   cd user-service
-   pip install -r requirements.txt
-   python main.py
-
-   # Catalog Service  
-   cd catalog-service
-   pip install -r requirements.txt
-   python main.py
-
-   # Order Service
-   cd order-service
-   pip install -r requirements.txt
-   python main.py
-   ```
-
-   **Frontend Service:**
-   ```bash
-   cd frontend-service
-   npm install
-   npm start
-   ```
-
-3. **Using Docker Compose:**
-   ```bash
-   ./deploy.sh
-   ```
-
-### Production Deployment
-
-Run the deployment script:
+### 1. Clone and Setup
 ```bash
+git clone <repository-url>
+cd "Seneca Book Store"
+
+# Install frontend dependencies
+cd frontend-service
+npm install
+cd ..
+```
+
+### 2. Start All Services
+```bash
+# Make deploy script executable
 chmod +x deploy.sh
-./deploy.sh
+
+# Start all services with Docker Compose
+./deploy.sh start
+
+# Or start services individually for development
+./deploy.sh dev
 ```
 
-This will:
-- Build all Docker images
-- Deploy to Kubernetes cluster
-- Set up all services with proper networking
-
-## API Endpoints
-
-### User Service (Port 8000/8001)
-- `POST /register` - Register new user
-  ```json
-  {
-    "email": "user@example.com",
-    "password": "password123",
-    "full_name": "John Doe"
-  }
-  ```
-- `POST /login` - User login (returns JWT token)
-  ```json
-  {
-    "email": "user@example.com", 
-    "password": "password123"
-  }
-  ```
-- `GET /me` - Get current user info (requires Bearer token)
-- `GET /health` - Service health status
-
-### Catalog Service (Port 8000/8002)
-- `GET /books` - List books with optional filters
-  - Query parameters: `page`, `size`, `search`, `category`, `author`, `min_price`, `max_price`, `available_only`
-- `GET /books/{id}` - Get specific book
-- `POST /books` - Create book (admin only)
-  ```json
-  {
-    "title": "Book Title",
-    "author": "Author Name",
-    "isbn": "978-1234567890",
-    "description": "Book description",
-    "category": "Programming",
-    "price": 49.99,
-    "rent_price": 5.99,
-    "available": true,
-    "stock_quantity": 10,
-    "publication_year": 2024,
-    "publisher": "Publisher Name"
-  }
-  ```
-- `PUT /books/{id}` - Update book (admin only)
-- `DELETE /books/{id}` - Delete book (admin only)
-- `GET /categories` - Get all categories
-- `GET /authors` - Get all authors
-- `POST /seed-data` - Create sample books (admin only)
-- `GET /health` - Service health status
-
-### Order Service (Port 8000/8003)
-- `POST /orders` - Place order (buy or rent)
-  ```json
-  {
-    "book_id": 1,
-    "order_type": "buy",
-    "quantity": 2,
-    "notes": "Optional order notes"
-  }
-  ```
-  ```json
-  {
-    "book_id": 2,
-    "order_type": "rent",
-    "quantity": 1,
-    "rental_days": 7,
-    "notes": "7-day rental"
-  }
-  ```
-- `GET /orders` - List user's orders
-  - Query parameters: `page`, `size`, `order_type`, `status`
-- `GET /orders/{id}` - Get specific order
-- `PUT /orders/{id}/status` - Update order status (requires authentication)
-- `POST /orders/{id}/return` - Return rental order
-- `GET /orders/summary/me` - Get order summary stats
-- `GET /orders/rentals/active` - Get active rentals
-- `GET /orders/rentals/overdue` - Get overdue rentals
-- `POST /seed-orders` - Create sample orders (development)
-- `GET /health` - Service health status
-
-### Frontend Service
-- Accessible via LoadBalancer on port 80
-
-## Authentication
-
-The User Service uses JWT (JSON Web Tokens) for authentication:
-
-1. **Register** a new user with `/register`
-2. **Login** with `/login` to receive a JWT token
-3. **Include token** in Authorization header: `Bearer <token>`
-4. **Access protected routes** like `/me`
-
-**Token Configuration:**
-- Expires in 1 hour
-- Uses HS256 algorithm
-- Secret key configurable via environment variable
-
-## Environment Variables
-
-### User Service
+### 3. Initialize Sample Data
 ```bash
-SECRET_KEY=your-super-secret-jwt-key-change-in-production-please
-DATABASE_URL=sqlite:///./users.db
-ACCESS_TOKEN_EXPIRE_MINUTES=60
+# Create admin user and sample books
+./deploy.sh seed
 ```
 
-### Order Service
+### 4. Access the Application
+- **Frontend**: http://localhost:3000
+- **User Service**: http://localhost:8001/docs
+- **Catalog Service**: http://localhost:8002/docs
+- **Order Service**: http://localhost:8003/docs
+
+## 🎨 Frontend Features
+
+### User Interface
+- **Warm Color Scheme**: Chocolate orange, sienna, and sandy brown tones
+- **Modern Typography**: Inter and Playfair Display fonts
+- **Responsive Design**: Mobile-first approach with breakpoints
+- **Smooth Animations**: Hover effects and loading states
+
+### User Authentication
+- **Login/Register Forms** with validation
+- **JWT Token Management** with auto-refresh
+- **Protected Routes** based on authentication status
+- **Admin Role Detection** for dashboard access
+
+### Book Catalog
+- **Search & Filter**: Real-time search with genre filtering
+- **Sort Options**: By title, author, or price
+- **Stock Indicators**: Real-time availability status
+- **Buy/Rent Buttons**: Instant order processing
+
+### Admin Dashboard
+- **Book Management**: Full CRUD operations with modal forms
+- **Order Tracking**: View all user orders and statistics
+- **Revenue Analytics**: Total sales and rental tracking
+- **Inventory Management**: Stock level monitoring
+
+### Order History
+- **Purchase Tracking**: Complete order history
+- **Rental Management**: Due dates and return functionality
+- **Status Indicators**: Visual status badges
+- **Order Analytics**: Personal spending and rental statistics
+
+## 🛠️ Technology Stack
+
+### Backend Services
+- **FastAPI 0.104.1**: Modern, fast web framework
+- **SQLAlchemy 2.0.23**: SQL toolkit and ORM
+- **PyJWT 2.8.0**: JSON Web Token implementation
+- **bcrypt 4.1.2**: Password hashing
+- **pytest 7.4.3**: Testing framework
+
+### Frontend Application
+- **React 18.2.0**: Modern UI library
+- **React Router 6.20.1**: Client-side routing
+- **Axios 1.6.2**: HTTP client for API calls
+- **CSS Variables**: Modern styling with custom properties
+
+### Infrastructure
+- **Docker**: Containerization
+- **Docker Compose**: Multi-service orchestration
+- **Kubernetes**: Production deployment
+- **SQLite**: Lightweight database for development
+
+## 📱 API Endpoints
+
+### User Service (Port 8001)
+```
+POST   /register          # User registration
+POST   /login             # User authentication
+GET    /me                # Get current user info
+GET    /health            # Health check
+```
+
+### Catalog Service (Port 8002)
+```
+GET    /books             # List all books
+POST   /books             # Create book (admin only)
+PUT    /books/{id}        # Update book (admin only)
+DELETE /books/{id}        # Delete book (admin only)
+GET    /books/search      # Search books
+POST   /books/seed        # Seed sample data
+GET    /health            # Health check
+```
+
+### Order Service (Port 8003)
+```
+POST   /orders            # Create new order
+GET    /orders            # Get user orders
+GET    /orders/admin      # Get all orders (admin)
+PUT    /orders/{id}/return # Return rental
+GET    /orders/stats      # Order statistics
+GET    /health            # Health check
+```
+
+## 🔐 Authentication Flow
+
+1. **User Registration/Login** → JWT Token received
+2. **Token Storage** → Stored in localStorage
+3. **API Requests** → Token included in Authorization header
+4. **Protected Routes** → Token validation on each request
+5. **Admin Access** → Additional role-based validation
+
+## 📊 Default Test Users
+
+After running `./deploy.sh seed`:
+
+### Admin User
+- **Email**: admin@seneca.ca
+- **Password**: admin123
+- **Access**: Full admin dashboard + user features
+
+### Regular User
+- **Email**: user@seneca.ca
+- **Password**: user123
+- **Access**: Book catalog + order management
+
+## 🐳 Docker Deployment
+
+### Development Mode
 ```bash
-DATABASE_URL=sqlite:///./orders.db
-USER_SERVICE_URL=http://localhost:8001
-CATALOG_SERVICE_URL=http://localhost:8002
+# Start all services for development
+./deploy.sh dev
+
+# View logs
+./deploy.sh logs
+
+# Stop all services
+./deploy.sh stop
 ```
 
-## Order Processing Flow
+### Production Mode
+```bash
+# Build and start production containers
+./deploy.sh start
 
-The Order Service enables users to buy or rent books:
+# Scale services
+./deploy.sh scale
 
-1. **Authentication** - User must be logged in (JWT token required)
-2. **Book Selection** - Choose book from catalog
-3. **Order Type** - Select "buy" for purchase or "rent" for rental
-4. **Validation** - System checks book availability and stock
-5. **Order Creation** - Order is created with pricing calculation
-6. **Rental Management** - For rentals, track start/end dates and returns
+# Health check all services
+./deploy.sh health
+```
 
-**Order Types:**
-- **Buy**: One-time purchase at book's `price`
-- **Rent**: Temporary access with daily rate (`rent_price` × `rental_days`)
+## ☸️ Kubernetes Deployment
 
-**Order Statuses:**
-- `pending` - Order created but not confirmed
-- `confirmed` - Order confirmed and active
-- `completed` - Order fulfilled
-- `cancelled` - Order cancelled
-- `returned` - Rental returned (rent orders only)
+```bash
+# Deploy to Kubernetes
+kubectl apply -f k8s-manifests/
 
-## Admin Access
+# Check deployment status
+kubectl get pods
 
-To access admin-only endpoints in the Catalog Service:
+# Access via port forwarding
+kubectl port-forward service/frontend-service 3000:3000
+```
 
-1. **Register as admin** in User Service with an email from `ADMIN_EMAILS`
-2. **Login** to get JWT token
-3. **Use Bearer token** in Authorization header for admin endpoints
+## 🧪 Testing
 
-**Default admin emails**: `admin@seneca.ca`, `admin@example.com`
+### Backend Testing
+```bash
+# Test all services
+./deploy.sh test
 
-## Development Guide
+# Test specific service
+cd user-service && python -m pytest
+cd catalog-service && python -m pytest
+cd order-service && python -m pytest
+```
+
+### Frontend Testing
+```bash
+cd frontend-service
+npm test
+```
+
+## 📈 Performance & Monitoring
+
+- **Health Checks**: All services include `/health` endpoints
+- **Error Handling**: Comprehensive error messages and logging
+- **Loading States**: User-friendly loading indicators
+- **Responsive Design**: Optimized for all screen sizes
+- **API Optimization**: Efficient data fetching with proper caching
+
+## 🔧 Development
 
 ### Adding New Features
+1. **Backend**: Add endpoints to appropriate service
+2. **Frontend**: Create/update React components
+3. **API Integration**: Update `services/api.js`
+4. **Testing**: Add unit tests for new functionality
 
-1. **Backend Services:**
-   - Add new endpoints to respective `main.py` files
-   - Update requirements.txt if new dependencies needed
-   - Rebuild Docker images
+### Environment Variables
+- **JWT_SECRET_KEY**: Secret for JWT token signing
+- **DATABASE_URL**: Database connection string
+- **CORS_ORIGINS**: Allowed frontend origins
 
-2. **Frontend:**
-   - Add new components in `src/components/`
-   - Update routing in `src/App.js`
-   - Rebuild for production deployment
+## 📚 Project Structure
 
-### Testing
-
-Each service can be tested independently:
-
-```bash
-# Test backend services
-curl http://localhost:8000/health
-
-# Test frontend
-curl http://localhost:3000
+```
+Seneca Book Store/
+├── frontend-service/          # React application
+│   ├── src/
+│   │   ├── components/        # React components
+│   │   ├── services/          # API services
+│   │   └── App.js            # Main app component
+│   ├── public/               # Static assets
+│   └── package.json          # Dependencies
+├── user-service/             # Authentication service
+├── catalog-service/          # Book management service
+├── order-service/            # Order processing service
+├── k8s-manifests/           # Kubernetes deployment files
+├── deploy.sh                # Deployment script
+└── README.md               # This file
 ```
 
-## Monitoring
+## 🎯 Future Enhancements
 
-Health check endpoints are available for all services:
-- User Service: `http://user-service:8000/health`
-- Catalog Service: `http://catalog-service:8000/health`
-- Order Service: `http://order-service:8000/health`
+- **Payment Integration**: Stripe/PayPal integration
+- **Email Notifications**: Order confirmations and reminders
+- **Book Reviews**: User rating and review system
+- **Recommendation Engine**: AI-powered book suggestions
+- **Advanced Analytics**: Sales and user behavior tracking
+- **Mobile App**: React Native mobile application
 
-## Contributing
+## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-## License
+## 📄 License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 👥 Support
+
+For support and questions:
+- 📧 Email: support@senecabookstore.com
+- 📖 Documentation: [Full API Documentation](http://localhost:8001/docs)
+- 🐛 Issues: [GitHub Issues](https://github.com/your-repo/issues)
+
+---
+
+**Seneca Book Store** - Building the future of book retail with modern microservices architecture! 📚✨

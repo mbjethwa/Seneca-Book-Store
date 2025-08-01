@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  user-service:
+    image: localhost:5000/user-service:latest
+    ports:
+      - "8001:8000"
+    environment:
+      - PORT=8000
+      - SECRET_KEY=your-super-secret-jwt-key-change-in-production-please
+      - DATABASE_URL=sqlite:///./users.db
+      - ACCESS_TOKEN_EXPIRE_MINUTES=60
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  catalog-service:
+    image: localhost:5000/catalog-service:latest
+    ports:
+      - "8002:8000"
+    environment:
+      - PORT=8000
+      - DATABASE_URL=sqlite:///./catalog.db
+      - USER_SERVICE_URL=http://user-service:8000
+      - ADMIN_EMAILS=admin@seneca.ca,admin@example.com
+    depends_on:
+      user-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  order-service:
+    image: localhost:5000/order-service:latest
+    ports:
+      - "8003:8000"
+    environment:
+      - PORT=8000
+      - DATABASE_URL=sqlite:///./orders.db
+      - USER_SERVICE_URL=http://user-service:8000
+      - CATALOG_SERVICE_URL=http://catalog-service:8000
+    depends_on:
+      user-service:
+        condition: service_healthy
+      catalog-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  frontend-service:
+    image: localhost:5000/frontend-service:latest
+    ports:
+      - "3000:80"
+    depends_on:
+      user-service:
+        condition: service_healthy
+      catalog-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+    environment:
+      - REACT_APP_USER_SERVICE_URL=http://localhost:8001
+      - REACT_APP_CATALOG_SERVICE_URL=http://localhost:8002
+      - REACT_APP_ORDER_SERVICE_URL=http://localhost:8003
+    restart: unless-stopped
+
+networks:
+  default:
+    name: seneca-book-store-network

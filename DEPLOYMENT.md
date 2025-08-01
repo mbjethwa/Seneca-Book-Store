@@ -42,46 +42,6 @@ export DATABASE_URL="sqlite:///./users.db"
 
 python main.py
 # Service available at http://localhost:8000
-
-# Test the endpoints:
-# Register: curl -X POST "http://localhost:8000/register" -H "Content-Type: application/json" -d '{"email":"test@example.com","password":"test123","full_name":"Test User"}'
-# Login: curl -X POST "http://localhost:8000/login" -H "Content-Type: application/json" -d '{"email":"test@example.com","password":"test123"}'
-
-# Catalog Service (with book management)
-cd ../catalog-service
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
-
-# Set environment variables
-export DATABASE_URL="sqlite:///./catalog.db"
-export USER_SERVICE_URL="http://localhost:8001"
-export ADMIN_EMAILS="admin@seneca.ca,admin@example.com"
-
-python main.py
-# Service available at http://localhost:8000
-
-# Test the endpoints:
-# List books: curl "http://localhost:8000/books"
-# Get categories: curl "http://localhost:8000/categories"
-
-# Order Service (with order processing)
-cd ../order-service
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
-
-# Set environment variables
-export DATABASE_URL="sqlite:///./orders.db"
-export USER_SERVICE_URL="http://localhost:8001"
-export CATALOG_SERVICE_URL="http://localhost:8002"
-
-python main.py
-# Service available at http://localhost:8000
-
-# Test the endpoints (requires authentication):
-# Get orders: curl -H "Authorization: Bearer <token>" "http://localhost:8000/orders"
-# Create order: curl -X POST -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d '{"book_id":1,"order_type":"buy","quantity":1}' "http://localhost:8000/orders"
 ```
 
 ### Frontend Service Setup
@@ -89,322 +49,82 @@ python main.py
 ```bash
 cd frontend-service
 npm install
+
+# Start development server
 npm start
-# Application available at http://localhost:3000
-```
+# Frontend available at http://localhost:3000
 
-### Environment Variables
-
-Create `.env` files in each service directory for local configuration:
-
-**User Service (.env):**
-```env
-SECRET_KEY=your-super-secret-jwt-key-change-in-production-please
-DATABASE_URL=sqlite:///./users.db
-ACCESS_TOKEN_EXPIRE_MINUTES=60
-PORT=8000
-DEBUG=true
-LOG_LEVEL=info
-```
-
-**Catalog Service (.env):**
-```env
-DATABASE_URL=sqlite:///./catalog.db
-USER_SERVICE_URL=http://localhost:8001
-ADMIN_EMAILS=admin@seneca.ca,admin@example.com
-PORT=8000
-DEBUG=true
-LOG_LEVEL=info
-```
-
-**Order Service (.env):**
-```env
-DATABASE_URL=sqlite:///./orders.db
-USER_SERVICE_URL=http://localhost:8001
-CATALOG_SERVICE_URL=http://localhost:8002
-PORT=8000
-DEBUG=true
-LOG_LEVEL=info
-```
-
-**Other Backend Services (.env):**
-```env
-PORT=8000
-DEBUG=true
-LOG_LEVEL=info
-```
-
-**Frontend Service (.env):**
-```env
-REACT_APP_USER_SERVICE_URL=http://localhost:8001
-REACT_APP_CATALOG_SERVICE_URL=http://localhost:8002
-REACT_APP_ORDER_SERVICE_URL=http://localhost:8003
+# Build for production
+npm run build
 ```
 
 ## Docker Deployment
 
-### Single Service Deployment
+### Phase 5: Complete Dockerization ✅
 
-Build and run individual services:
+All services are fully containerized with optimized Dockerfiles:
+
+#### Backend Services (FastAPI)
+- **Base Image**: `python:3.11-slim` for optimal size and security
+- **Dependencies**: Installed via `requirements.txt` with caching
+- **Runtime**: Uvicorn ASGI server on port 8000
+- **Health Checks**: Built-in health endpoints for monitoring
+
+#### Frontend Service (React + Nginx)
+- **Build Stage**: Node.js 18 for compiling React application
+- **Production Stage**: Nginx Alpine for serving static files
+- **Optimization**: Multi-stage build reduces final image size
+
+### Automated Deployment (Recommended)
+
+Use the provided deployment script for one-command deployment:
 
 ```bash
-# Backend services
-cd user-service
-docker build -t user-service:latest .
-docker run -p 8001:8000 user-service:latest
+# Make script executable
+chmod +x deploy.sh
 
-cd ../catalog-service
-docker build -t catalog-service:latest .
-docker run -p 8002:8000 catalog-service:latest
+# Deploy all services
+./deploy.sh
 
-cd ../order-service
-docker build -t order-service:latest .
-docker run -p 8003:8000 order-service:latest
+# Deploy with cleanup (removes existing containers)
+./deploy.sh --clean
 
-# Frontend service
-cd ../frontend-service
-docker build -t frontend-service:latest .
-docker run -p 3000:80 frontend-service:latest
+# Deploy only Docker Compose (skip Kubernetes)
+./deploy.sh --docker
+
+# Show help
+./deploy.sh --help
 ```
 
-### Docker Compose Deployment
+### Manual Docker Commands
 
-Create `docker-compose.yml` in the root directory:
+If you prefer to build and run containers manually:
 
-```yaml
-version: '3.8'
-
-services:
-  user-service:
-    build: ./user-service
-    ports:
-      - "8001:8000"
-    environment:
-      - PORT=8000
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  catalog-service:
-    build: ./catalog-service
-    ports:
-      - "8002:8000"
-    environment:
-      - PORT=8000
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  order-service:
-    build: ./order-service
-    ports:
-      - "8003:8000"
-    environment:
-      - PORT=8000
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  frontend-service:
-    build: ./frontend-service
-    ports:
-      - "3000:80"
-    depends_on:
-      - user-service
-      - catalog-service
-      - order-service
-    environment:
-      - REACT_APP_USER_SERVICE_URL=http://localhost:8001
-      - REACT_APP_CATALOG_SERVICE_URL=http://localhost:8002
-      - REACT_APP_ORDER_SERVICE_URL=http://localhost:8003
-```
-
-Run with Docker Compose:
 ```bash
+# Build all service images
+docker build -t seneca-user-service:latest user-service/
+docker build -t seneca-catalog-service:latest catalog-service/
+docker build -t seneca-order-service:latest order-service/
+docker build -t seneca-frontend-service:latest frontend-service/
+
+# Run with Docker Compose
 docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop all services
+docker-compose down
 ```
 
-## Kubernetes Deployment
+## Service URLs
 
-### Prerequisites
+After successful deployment, services will be available at:
 
-Ensure you have a Kubernetes cluster running:
+### Docker Compose
+- **Frontend**: http://localhost:3000
+- **User Service**: http://localhost:8001
+- **Catalog Service**: http://localhost:8002
+- **Order Service**: http://localhost:8003
 
-```bash
-# Check cluster status
-kubectl cluster-info
-
-# Verify nodes are ready
-kubectl get nodes
-```
-
-### Build and Push Images
-
-```bash
-# Build all images
-docker build -t your-registry/user-service:latest ./user-service
-docker build -t your-registry/catalog-service:latest ./catalog-service
-docker build -t your-registry/order-service:latest ./order-service
-docker build -t your-registry/frontend-service:latest ./frontend-service
-
-# Push to registry
-docker push your-registry/user-service:latest
-docker push your-registry/catalog-service:latest
-docker push your-registry/order-service:latest
-docker push your-registry/frontend-service:latest
-```
-
-### Deploy to Kubernetes
-
-```bash
-# Apply all manifests
-kubectl apply -f k8s-manifests/
-
-# Check deployment status
-kubectl get deployments
-kubectl get services
-kubectl get pods
-
-# Get service URLs
-kubectl get services
-```
-
-### Access Applications
-
-```bash
-# Get frontend service URL
-kubectl get service frontend-service
-
-# Port forward for local access (if needed)
-kubectl port-forward service/frontend-service 3000:80
-kubectl port-forward service/user-service 8001:8000
-kubectl port-forward service/catalog-service 8002:8000
-kubectl port-forward service/order-service 8003:8000
-```
-
-## Production Considerations
-
-### Security
-- Use secrets for sensitive configuration
-- Implement proper RBAC
-- Enable network policies
-- Use TLS/SSL certificates
-
-### Monitoring
-- Deploy monitoring stack (Prometheus + Grafana)
-- Set up log aggregation (ELK stack)
-- Configure alerting rules
-
-### Scaling
-- Configure horizontal pod autoscalers
-- Set resource limits and requests
-- Use cluster autoscaling
-
-### Backup and Recovery
-- Regular database backups
-- Disaster recovery procedures
-- Multi-region deployment for high availability
-
-### Example Production Configuration
-
-```yaml
-# Production values
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: user-service
-spec:
-  replicas: 3
-  template:
-    spec:
-      containers:
-      - name: user-service
-        image: user-service:v1.0.0
-        resources:
-          limits:
-            cpu: 500m
-            memory: 512Mi
-          requests:
-            cpu: 100m
-            memory: 128Mi
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8000
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 8000
-          initialDelaySeconds: 5
-          periodSeconds: 5
-```
-
-## Troubleshooting
-
-### Common Issues
-
-**Service not accessible:**
-```bash
-# Check pod status
-kubectl get pods
-kubectl describe pod <pod-name>
-
-# Check service configuration
-kubectl get service <service-name>
-kubectl describe service <service-name>
-
-# Check logs
-kubectl logs <pod-name>
-```
-
-**Image pull errors:**
-```bash
-# Verify image exists
-docker images | grep <service-name>
-
-# Check image pull policy
-kubectl describe pod <pod-name>
-```
-
-**Port conflicts:**
-```bash
-# Check what's running on ports
-netstat -tulpn | grep <port>
-
-# Change port mappings in docker-compose.yml or use different ports
-```
-
-### Debugging Commands
-
-```bash
-# Enter running container
-kubectl exec -it <pod-name> -- /bin/bash
-
-# Check service endpoints
-kubectl get endpoints
-
-# View events
-kubectl get events --sort-by=.metadata.creationTimestamp
-
-# Check resource usage
-kubectl top pods
-kubectl top nodes
-```
-
-### Performance Optimization
-
-- Monitor response times and error rates
-- Optimize Docker image sizes
-- Use multi-stage builds
-- Implement caching strategies
-- Configure resource limits appropriately
-
-For additional support, check the application logs and Kubernetes events for specific error messages.
+For additional support, check the main README.md file or project documentation.
