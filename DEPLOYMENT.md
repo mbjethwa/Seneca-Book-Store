@@ -529,21 +529,88 @@ curl https://senecabooks.local/grafana/api/health
 
 ---
 
-## 📞 Support and Documentation
+## � External Book Integration Features
+
+### Open Library API Integration
+The Seneca Book Store now includes powerful external book discovery capabilities through Open Library API integration:
+
+#### Key Features
+- **📚 Massive Book Database**: Access to millions of books from Open Library
+- **🔍 Advanced Search**: Search by title, author, ISBN, or keywords  
+- **📖 Category Browsing**: Browse popular subjects like science fiction, history, romance
+- **🖼️ Rich Metadata**: Book covers, publication info, author details, and subject tags
+- **📥 Smart Import**: Admin-only feature to import external books with custom pricing
+- **🆓 Free & Open**: No API keys required, completely free to use
+
+#### New API Endpoints
+```bash
+# Search external books
+GET /api/catalog/books/external/search?q={query}&limit=20&offset=0
+
+# Browse by subject
+GET /api/catalog/books/external/subject/{subject}?limit=20&offset=0
+
+# Get popular subjects
+GET /api/catalog/books/external/subjects
+
+# Get book by ISBN
+GET /api/catalog/books/external/isbn/{isbn}
+
+# Import book to catalog (Admin only)
+POST /api/catalog/books/import
+```
+
+#### Frontend Integration
+- **New "Discover" Page**: Dedicated interface for browsing external books
+- **Visual Book Browser**: Rich card-based layout with covers and metadata
+- **Category Navigation**: Quick access to 20+ popular book categories
+- **Smart Import Modal**: Easy-to-use interface for importing books to catalog
+- **Search & Pagination**: Full-featured search with pagination support
+
+#### Usage Examples
+```bash
+# Test external book search
+curl "https://senecabooks.local/api/catalog/books/external/search?q=python%20programming&limit=5"
+
+# Browse science fiction books
+curl "https://senecabooks.local/api/catalog/books/external/subject/science_fiction?limit=10"
+
+# Get book details by ISBN
+curl "https://senecabooks.local/api/catalog/books/external/isbn/9780132269933"
+```
+
+#### Database Enhancements
+The catalog service database now includes new fields to support external book integration:
+- `cover_url`: Book cover image URL
+- `source`: Data source identifier (local, open_library, etc.)
+- `external_key`: External API key/identifier for tracking
+
+---
+
+## �📞 Support and Documentation
 
 ### Additional Resources
-- **API Documentation**: Available at each service's `/docs` endpoint
+- **API Documentation**: Available at each service's `/docs` endpoint (catalog service now includes external book endpoints!)
 - **Kubernetes Dashboard**: `minikube dashboard`
 - **Application Logs**: `./deploy.sh --k8s logs <service>`
 - **Health Monitoring**: All services have `/health` endpoints
 - **Monitoring Access**: Prometheus and Grafana via Ingress routes
 - **Test Documentation**: Comprehensive test suite with `./test.sh --help`
+- **External Book Discovery**: Access via https://senecabooks.local/discover
+
+### New Features Testing
+- **External Book Search**: Use the "Discover" page to search millions of books
+- **Category Browsing**: Browse books by popular subjects
+- **Admin Import**: Test book import functionality (admin users only)
+- **Cover Images**: Verify book cover image loading and fallbacks
+- **API Integration**: Test external API endpoints for responsiveness
 
 ### Performance Optimization
 - **Resource Limits**: All pods have defined CPU/memory limits
 - **Health Checks**: Liveness and readiness probes for zero-downtime deployments
 - **Horizontal Scaling**: Services can be scaled using `kubectl scale`
 - **Monitoring Insights**: Use Grafana dashboards to identify performance bottlenecks
+- **External API Caching**: Open Library API responses are efficiently handled with async processing
 
 ### Getting Help
 - Check application logs first: `./deploy.sh logs <service>`
@@ -551,5 +618,6 @@ curl https://senecabooks.local/grafana/api/health
 - Test monitoring stack: `./test.sh --monitoring`
 - Review resource usage: Check Grafana dashboards
 - Run comprehensive tests: `./test.sh`
+- Test external book integration: Visit `/discover` page and try searching/browsing
 
-This guide covers comprehensive deployment scenarios including testing and monitoring. For specific issues not covered here, check the service logs, run the test suite, and review monitoring dashboards for detailed error messages and performance insights.
+This guide covers comprehensive deployment scenarios including testing, monitoring, and the new external book integration features. For specific issues not covered here, check the service logs, run the test suite, and review monitoring dashboards for detailed error messages and performance insights.

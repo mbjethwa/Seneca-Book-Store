@@ -124,6 +124,27 @@ Seneca Book Store is a comprehensive e-commerce platform built with microservice
   - Support for both Docker and Kubernetes deployments
   - Comprehensive test reporting and analytics
 
+### Phase 9: External Book Data Integration ✅
+- ✅ **Open Library API Integration**: 
+  - **Massive Book Database**: Access to millions of books from Open Library
+  - **Rich Metadata**: Book covers, authors, publication info, ISBNs, and subjects
+  - **Free & Open Source**: No authentication required, completely free to use
+- ✅ **External Book Discovery**:
+  - **Advanced Search**: Search by title, author, ISBN across millions of books
+  - **Category Browsing**: Browse by popular subjects (science fiction, history, romance, etc.)
+  - **Book Import System**: Admin-only import of external books to local catalog
+  - **Cover Images**: Automatic cover image integration from Open Library
+- ✅ **Enhanced Frontend**:
+  - **Discover Page**: New dedicated interface for browsing external books
+  - **Visual Book Browser**: Rich card-based interface with covers and metadata
+  - **Smart Import Modal**: Easy-to-use import interface for admins
+  - **Subject Categories**: Quick access to popular book categories
+- ✅ **Intelligent Data Management**:
+  - **Source Tracking**: Track data origin (local vs. external)
+  - **Duplicate Prevention**: Prevent duplicate imports via ISBN checking
+  - **Flexible Pricing**: Set custom pricing for imported books
+  - **Metadata Enhancement**: Automatic population of descriptions and categories
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -177,13 +198,49 @@ cd "Seneca Book Store"
 ### 3. Access the Application
 - **Production (K8s)**: https://senecabooks.local (Secure HTTPS with TLS)
 - **Development**: http://localhost:3000
+- **New Feature**: Access the **Discover** page to browse millions of books from Open Library!
+
+### 4. Explore External Book Integration
+- **Browse by Subject**: Click on categories like "Science Fiction" or "History"
+- **Search Books**: Use the search bar to find specific titles or authors
+- **Import Books** (Admin Only): Import external books to your local catalog with custom pricing
+- **Visual Discovery**: Rich interface with book covers and detailed metadata
 - **API Documentation**: 
   - User Service: https://senecabooks.local/api/user/docs
-  - Catalog Service: https://senecabooks.local/api/catalog/docs
+  - Catalog Service: https://senecabooks.local/api/catalog/docs (now includes external book endpoints!)
   - Order Service: https://senecabooks.local/api/order/docs
 - **Monitoring & Observability**:
   - **Prometheus**: https://senecabooks.local/prometheus
   - **Grafana**: https://senecabooks.local/grafana (admin/admin123)
+
+## 🔍 External Book Discovery (Open Library Integration)
+
+### Powerful Book Discovery Features
+- **🌍 Global Book Database**: Access to millions of books from Open Library
+- **🔍 Advanced Search**: Search by title, author, ISBN, or keywords
+- **📚 Category Browsing**: Browse 20+ popular subject categories
+- **🖼️ Rich Visuals**: Book covers and detailed metadata display
+- **📥 Smart Import**: One-click import for admins with custom pricing
+- **🏷️ Auto-categorization**: Automatic category assignment from book subjects
+
+### External Book API Endpoints
+- **GET** `/books/external/search?q={query}` - Search external books
+- **GET** `/books/external/subjects` - Get popular subject categories  
+- **GET** `/books/external/subject/{subject}` - Browse books by category
+- **GET** `/books/external/isbn/{isbn}` - Get book details by ISBN
+- **POST** `/books/import` - Import external book to catalog (Admin only)
+
+### Example Usage
+```bash
+# Search for science fiction books
+curl "https://senecabooks.local/api/catalog/books/external/search?q=science%20fiction&limit=10"
+
+# Browse history books
+curl "https://senecabooks.local/api/catalog/books/external/subject/history?limit=20"
+
+# Get book by ISBN
+curl "https://senecabooks.local/api/catalog/books/external/isbn/9780451526533"
+```
 
 ## 🧪 Testing & Quality Assurance
 

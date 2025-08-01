@@ -99,3 +99,14 @@ def get_authors(db: Session) -> List[str]:
     """Get all unique authors."""
     authors = db.query(Book.author).distinct().all()
     return [author[0] for author in authors]
+
+def get_books_by_source(db: Session, source: str, skip: int = 0, limit: int = 100) -> tuple[List[Book], int]:
+    """Get books by data source (local, open_library, etc.)."""
+    query = db.query(Book).filter(Book.source == source)
+    total = query.count()
+    books = query.offset(skip).limit(limit).all()
+    return books, total
+
+def get_book_by_external_key(db: Session, external_key: str) -> Optional[Book]:
+    """Get book by external API key."""
+    return db.query(Book).filter(Book.external_key == external_key).first()

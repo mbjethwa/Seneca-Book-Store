@@ -27,6 +27,9 @@ class Book(Base):
     stock_quantity = Column(Integer, default=1, nullable=False)
     publication_year = Column(Integer, nullable=True)
     publisher = Column(String, nullable=True)
+    cover_url = Column(String, nullable=True)  # Book cover image URL
+    source = Column(String, default="local", nullable=True)  # Data source: local, open_library, etc.
+    external_key = Column(String, nullable=True)  # External API key/identifier
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

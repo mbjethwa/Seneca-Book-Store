@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, status, Query, Request
 from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 import uvicorn
-from typing import Optional
+from typing import Optional, List
 import logging
 import time
 
@@ -12,6 +12,7 @@ from auth import get_admin_user, get_current_user
 import crud
 import schemas
 from metrics import PrometheusMetrics
+from open_library_api import open_library_api
 
 # Configure logging
 logging.basicConfig(
@@ -105,6 +106,189 @@ async def health():
 async def get_metrics():
     """Expose Prometheus metrics."""
     return PlainTextResponse(metrics.generate_metrics())
+
+# =============================================================================
+# EXTERNAL BOOK DATA ENDPOINTS (Open Library API Integration)
+# =============================================================================
+
+@app.get("/books/external/search", response_model=schemas.ExternalBookSearchResponse)
+async def search_external_books(
+    q: str = Query(..., min_length=1, description="Search query for books"),
+    limit: int = Query(20, ge=1, le=100, description="Maximum number of results"),
+    offset: int = Query(0, ge=0, description="Number of results to skip")
+):
+    """
+    Search for books using Open Library API.
+    
+    This endpoint searches the vast Open Library database for books matching your query.
+    Results include cover images, publication info, and metadata that can be imported
+    to your local catalog.
+    """
+    # Record external search metric
+    metrics.catalog_search_queries.inc()
+    
+    try:
+        logger.info(f"Searching external books with query: '{q}', limit: {limit}, offset: {offset}")
+        result = await open_library_api.search_books(query=q, limit=limit, offset=offset)
+        
+        return schemas.ExternalBookSearchResponse(
+            books=[schemas.ExternalBook(**book) for book in result["books"]],
+            total=result["total"],
+            offset=result["offset"],
+            limit=result["limit"],
+            query=q
+        )
+        
+    except Exception as e:
+        logger.error(f"Error searching external books: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to search external book database"
+        )
+
+@app.get("/books/external/subjects", response_model=List[str])
+async def get_popular_subjects():
+    """
+    Get list of popular book subject categories.
+    
+    Returns a curated list of popular book categories that can be used
+    to browse books by subject using the /books/external/subject/{subject} endpoint.
+    """
+    try:
+        subjects = await open_library_api.get_popular_subjects()
+        return subjects
+    except Exception as e:
+        logger.error(f"Error getting popular subjects: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get popular subjects"
+        )
+
+@app.get("/books/external/subject/{subject}", response_model=schemas.ExternalBookSearchResponse)
+async def get_books_by_subject(
+    subject: str = Query(..., description="Subject category (e.g., 'science_fiction', 'history')"),
+    limit: int = Query(20, ge=1, le=100, description="Maximum number of results"),
+    offset: int = Query(0, ge=0, description="Number of results to skip")
+):
+    """
+    Get books by subject category from Open Library.
+    
+    Browse books by popular categories like 'science_fiction', 'history', 'romance', etc.
+    Use /books/external/subjects to get a list of available categories.
+    """
+    # Record external browsing metric
+    metrics.books_browsed.inc()
+    
+    try:
+        logger.info(f"Getting books by subject: '{subject}', limit: {limit}, offset: {offset}")
+        result = await open_library_api.get_books_by_subject(subject=subject, limit=limit, offset=offset)
+        
+        return schemas.ExternalBookSearchResponse(
+            books=[schemas.ExternalBook(**book) for book in result["books"]],
+            total=result["total"],
+            offset=result["offset"],
+            limit=result["limit"],
+            subject=result["subject"]
+        )
+        
+    except Exception as e:
+        logger.error(f"Error getting books by subject '{subject}': {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get books for subject '{subject}'"
+        )
+
+@app.get("/books/external/isbn/{isbn}", response_model=Optional[schemas.ExternalBook])
+async def get_external_book_by_isbn(isbn: str):
+    """
+    Get book details by ISBN from Open Library.
+    
+    Lookup detailed information for a specific book using its ISBN.
+    Supports both ISBN-10 and ISBN-13 formats.
+    """
+    try:
+        logger.info(f"Getting external book by ISBN: {isbn}")
+        result = await open_library_api.get_book_by_isbn(isbn=isbn)
+        
+        if result:
+            return schemas.ExternalBook(**result)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Book with ISBN '{isbn}' not found"
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting external book by ISBN '{isbn}': {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get book details"
+        )
+
+@app.post("/books/import", response_model=schemas.BookResponse)
+async def import_external_book(
+    import_data: schemas.ExternalBookImport,
+    current_user: dict = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Import an external book to the local catalog.
+    
+    Admin-only endpoint to import books from external sources (like Open Library)
+    into the local catalog with pricing and inventory information.
+    """
+    try:
+        external_book = import_data.external_book
+        
+        # Create BookCreate object from external book data
+        book_data = schemas.BookCreate(
+            title=external_book.title,
+            author=external_book.author,
+            isbn=external_book.isbn,
+            description=external_book.description or f"A book by {external_book.author}",
+            category=import_data.category or (external_book.subjects[0] if external_book.subjects else "General"),
+            price=import_data.price,
+            rent_price=import_data.rent_price,
+            available=True,
+            stock_quantity=import_data.stock_quantity,
+            publication_year=external_book.publication_year,
+            publisher=external_book.publisher,
+            cover_url=external_book.cover_url,
+            source=external_book.source,
+            external_key=external_book.key
+        )
+        
+        # Check if book already exists (by ISBN or title+author)
+        existing_book = None
+        if external_book.isbn:
+            existing_book = crud.get_book_by_isbn(db, isbn=external_book.isbn)
+        
+        if existing_book:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Book with ISBN '{external_book.isbn}' already exists in catalog"
+            )
+        
+        # Create the book in local database
+        new_book = crud.create_book(db=db, book=book_data)
+        logger.info(f"Successfully imported book: {new_book.title} (ID: {new_book.id})")
+        
+        return new_book
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error importing external book: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to import book to catalog"
+        )
+
+# =============================================================================
+# LOCAL CATALOG ENDPOINTS
+# =============================================================================
 
 @app.get("/books", response_model=schemas.BookListResponse)
 async def get_books(
