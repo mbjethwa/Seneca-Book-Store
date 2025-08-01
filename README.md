@@ -49,9 +49,28 @@ A modern microservices-based bookstore application built with FastAPI backend se
   - Book availability and stock tracking
   - SQLite database with SQLAlchemy ORM
 
-#### Order Service  
-- **Order processing and transactions**
-- Basic health check endpoints
+#### Order Service (Phase 3 - Complete ✅)
+- **Order Processing & Rental Management**
+- **Endpoints:**
+  - `POST /orders` - Place order (buy or rent book)
+  - `GET /orders` - List user's orders with filtering/pagination
+  - `GET /orders/{id}` - Get specific order details
+  - `PUT /orders/{id}/status` - Update order status
+  - `POST /orders/{id}/return` - Return rental order
+  - `GET /orders/summary/me` - Get user's order summary
+  - `GET /orders/rentals/active` - Get active rental orders
+  - `GET /orders/rentals/overdue` - Get overdue rentals
+  - `POST /seed-orders` - Create sample orders (development)
+  - `GET /health` - Service health check
+- **Features:**
+  - Buy or rent books with different pricing
+  - Rental duration management with return tracking
+  - Order history and status tracking
+  - Stock validation via Catalog Service
+  - User authentication via User Service
+  - Automatic rental period calculation
+  - Overdue rental detection
+  - SQLite database with SQLAlchemy ORM
 
 All backend services:
 - Run on port 8000
@@ -175,7 +194,33 @@ This will:
 - `GET /health` - Service health status
 
 ### Order Service (Port 8000/8003)
-- `GET /` - Health check
+- `POST /orders` - Place order (buy or rent)
+  ```json
+  {
+    "book_id": 1,
+    "order_type": "buy",
+    "quantity": 2,
+    "notes": "Optional order notes"
+  }
+  ```
+  ```json
+  {
+    "book_id": 2,
+    "order_type": "rent",
+    "quantity": 1,
+    "rental_days": 7,
+    "notes": "7-day rental"
+  }
+  ```
+- `GET /orders` - List user's orders
+  - Query parameters: `page`, `size`, `order_type`, `status`
+- `GET /orders/{id}` - Get specific order
+- `PUT /orders/{id}/status` - Update order status (requires authentication)
+- `POST /orders/{id}/return` - Return rental order
+- `GET /orders/summary/me` - Get order summary stats
+- `GET /orders/rentals/active` - Get active rentals
+- `GET /orders/rentals/overdue` - Get overdue rentals
+- `POST /seed-orders` - Create sample orders (development)
 - `GET /health` - Service health status
 
 ### Frontend Service
@@ -204,12 +249,34 @@ DATABASE_URL=sqlite:///./users.db
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 ```
 
-### Catalog Service
+### Order Service
 ```bash
-DATABASE_URL=sqlite:///./catalog.db
+DATABASE_URL=sqlite:///./orders.db
 USER_SERVICE_URL=http://localhost:8001
-ADMIN_EMAILS=admin@seneca.ca,admin@example.com
+CATALOG_SERVICE_URL=http://localhost:8002
 ```
+
+## Order Processing Flow
+
+The Order Service enables users to buy or rent books:
+
+1. **Authentication** - User must be logged in (JWT token required)
+2. **Book Selection** - Choose book from catalog
+3. **Order Type** - Select "buy" for purchase or "rent" for rental
+4. **Validation** - System checks book availability and stock
+5. **Order Creation** - Order is created with pricing calculation
+6. **Rental Management** - For rentals, track start/end dates and returns
+
+**Order Types:**
+- **Buy**: One-time purchase at book's `price`
+- **Rent**: Temporary access with daily rate (`rent_price` × `rental_days`)
+
+**Order Statuses:**
+- `pending` - Order created but not confirmed
+- `confirmed` - Order confirmed and active
+- `completed` - Order fulfilled
+- `cancelled` - Order cancelled
+- `returned` - Rental returned (rent orders only)
 
 ## Admin Access
 

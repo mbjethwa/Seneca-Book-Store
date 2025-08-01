@@ -137,6 +137,14 @@ services:
       - "8003:8000"
     environment:
       - PORT=8000
+      - DATABASE_URL=sqlite:///./orders.db
+      - USER_SERVICE_URL=http://user-service:8000
+      - CATALOG_SERVICE_URL=http://catalog-service:8000
+    depends_on:
+      user-service:
+        condition: service_healthy
+      catalog-service:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
       interval: 30s

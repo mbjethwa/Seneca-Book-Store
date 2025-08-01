@@ -65,7 +65,23 @@ python main.py
 # List books: curl "http://localhost:8000/books"
 # Get categories: curl "http://localhost:8000/categories"
 
-# Repeat for order-service (basic health checks only)
+# Order Service (with order processing)
+cd ../order-service
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+# Set environment variables
+export DATABASE_URL="sqlite:///./orders.db"
+export USER_SERVICE_URL="http://localhost:8001"
+export CATALOG_SERVICE_URL="http://localhost:8002"
+
+python main.py
+# Service available at http://localhost:8000
+
+# Test the endpoints (requires authentication):
+# Get orders: curl -H "Authorization: Bearer <token>" "http://localhost:8000/orders"
+# Create order: curl -X POST -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d '{"book_id":1,"order_type":"buy","quantity":1}' "http://localhost:8000/orders"
 ```
 
 ### Frontend Service Setup
@@ -96,6 +112,16 @@ LOG_LEVEL=info
 DATABASE_URL=sqlite:///./catalog.db
 USER_SERVICE_URL=http://localhost:8001
 ADMIN_EMAILS=admin@seneca.ca,admin@example.com
+PORT=8000
+DEBUG=true
+LOG_LEVEL=info
+```
+
+**Order Service (.env):**
+```env
+DATABASE_URL=sqlite:///./orders.db
+USER_SERVICE_URL=http://localhost:8001
+CATALOG_SERVICE_URL=http://localhost:8002
 PORT=8000
 DEBUG=true
 LOG_LEVEL=info
