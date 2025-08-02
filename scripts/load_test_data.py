@@ -33,12 +33,14 @@ class DataLoader:
         self.base_urls = API_BASE_URLS[environment]
         self.admin_token = None
         self.user_tokens = {}
+        # Configure SSL verification - disable for self-signed certificates
+        self.verify_ssl = False if environment == "kubernetes" else True
         
     async def load_users(self, users_data: list) -> dict:
         """Load users into the user service."""
         print("👥 Loading users...")
         
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=30.0, verify=self.verify_ssl) as client:
             created_users = {}
             admin_users = []
             
@@ -98,7 +100,7 @@ class DataLoader:
             print("   ❌ No admin token available. Cannot load books.")
             return {}
         
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=30.0, verify=self.verify_ssl) as client:
             created_books = {}
             
             headers = {"Authorization": f"Bearer {self.admin_token}"}
@@ -151,7 +153,7 @@ class DataLoader:
             print("   ❌ No user tokens available. Cannot load orders.")
             return {}
         
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=30.0, verify=self.verify_ssl) as client:
             created_orders = {}
             user_emails = list(created_users.keys())
             book_isbns = list(created_books.keys())
@@ -213,7 +215,7 @@ class DataLoader:
         """Verify that data was loaded correctly."""
         print("🔍 Verifying data loading...")
         
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=30.0, verify=self.verify_ssl) as client:
             verification = {}
             
             try:

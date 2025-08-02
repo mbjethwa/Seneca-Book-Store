@@ -1,16 +1,15 @@
 {
-  "environment": "development",
-  "loaded_at": 20910.984034763,
-  "users_created": 49,
-  "books_created": 200,
+  "environment": "kubernetes",
+  "loaded_at": 23513.427461302,
+  "users_created": 48,
+  "books_created": 0,
   "orders_created": 0,
   "verification": {
     "user_service": true,
-    "books_count": 0,
     "orders_accessible": true,
     "catalog_service": true,
     "order_service": true
   },
-  "admin_token_set": true,
-  "user_tokens_count": 49
+  "admin_token_set": false,
+  "user_tokens_count": 1
 }

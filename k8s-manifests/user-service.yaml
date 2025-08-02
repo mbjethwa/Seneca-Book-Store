@@ -34,7 +34,7 @@ spec:
               name: bookstore-secrets
               key: SECRET_KEY
         - name: DATABASE_URL
-          value: "sqlite:///./users.db"
+          value: "sqlite:///data/users.db"
         - name: ACCESS_TOKEN_EXPIRE_MINUTES
           valueFrom:
             configMapKeyRef:
@@ -45,6 +45,9 @@ spec:
             configMapKeyRef:
               name: bookstore-config
               key: CORS_ORIGINS
+        volumeMounts:
+        - name: data-storage
+          mountPath: /data
         resources:
           limits:
             cpu: 500m
@@ -64,6 +67,10 @@ spec:
             port: 8000
           initialDelaySeconds: 5
           periodSeconds: 5
+      volumes:
+      - name: data-storage
+        persistentVolumeClaim:
+          claimName: bookstore-data-pvc
 ---
 apiVersion: v1
 kind: Service

@@ -91,9 +91,48 @@ backup_data() {
     if [ "$(ls -A $backup_dir 2>/dev/null)" ]; then
         print_success "Database backup completed: $backup_dir"
         echo -e "${GREEN}💾 Backup location: $backup_dir${NC}"
+        
+        # Create backup metadata
+        cat > "$backup_dir/backup_info.json" << EOF
+{
+    "backup_date": "$(date -Iseconds)",
+    "environment": "kubernetes",
+    "namespace": "$NAMESPACE",
+    "files": [
+        $(ls -1 "$backup_dir"/*.db 2>/dev/null | xargs -I {} basename {} | sed 's/.*/"&"/' | paste -sd,)
+    ]
+}
+EOF
+        
     else
         print_warning "No data was backed up"
         rmdir "$backup_dir" 2>/dev/null || true
+    fi
+}
+
+# Function to check persistent data status
+check_persistent_data() {
+    print_step "Checking persistent data status..."
+    
+    # Check if PVC exists
+    if kubectl get pvc bookstore-data-pvc -n $NAMESPACE >/dev/null 2>&1; then
+        local pvc_status=$(kubectl get pvc bookstore-data-pvc -n $NAMESPACE -o jsonpath='{.status.phase}')
+        print_status "PVC Status: $pvc_status"
+        
+        # Check data directory on minikube
+        if minikube ssh -- "[ -d /data/seneca-bookstore ]" 2>/dev/null; then
+            local file_count=$(minikube ssh -- "ls -la /data/seneca-bookstore/ 2>/dev/null | wc -l" 2>/dev/null || echo "0")
+            print_status "Data directory exists with $file_count files"
+            
+            # List database files
+            minikube ssh -- "ls -lah /data/seneca-bookstore/*.db 2>/dev/null" | while read line; do
+                print_status "  $line"
+            done || print_status "  No database files found"
+        else
+            print_warning "Data directory does not exist on minikube"
+        fi
+    else
+        print_warning "No persistent volume claim found"
     fi
 }
 
@@ -447,15 +486,23 @@ show_status() {
 # Main script logic
 case "${1:-help}" in
     soft)
+        check_persistent_data
+        echo
         soft_shutdown
         ;;
     app)
+        check_persistent_data
+        echo
         app_shutdown
         ;;
     full)
+        check_persistent_data
+        echo
         full_shutdown
         ;;
     clean)
+        check_persistent_data
+        echo
         clean_shutdown
         ;;
     backup)
@@ -463,6 +510,7 @@ case "${1:-help}" in
         ;;
     status)
         show_status
+        check_persistent_data
         ;;
     help|--help|-h)
         show_help

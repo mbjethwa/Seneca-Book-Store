@@ -28,6 +28,8 @@ metadata:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     cert-manager.io/cluster-issuer: "selfsigned-issuer"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
 spec:
   tls:
   - hosts:
@@ -38,22 +40,22 @@ spec:
     http:
       paths:
       # API Routes (must come first, more specific)
-      - path: /api/user
-        pathType: Prefix
+      - path: /api/user(/|$)(.*)
+        pathType: ImplementationSpecific
         backend:
           service:
             name: user-service
             port:
               number: 8000
-      - path: /api/catalog
-        pathType: Prefix
+      - path: /api/catalog(/|$)(.*)
+        pathType: ImplementationSpecific
         backend:
           service:
             name: catalog-service
             port:
               number: 8000
-      - path: /api/order
-        pathType: Prefix
+      - path: /api/order(/|$)(.*)
+        pathType: ImplementationSpecific
         backend:
           service:
             name: order-service

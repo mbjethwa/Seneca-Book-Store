@@ -464,6 +464,82 @@ enable_addons() {
     print_success "All required addons enabled!"
 }
 
+# Function to setup persistent storage
+setup_persistent_storage() {
+    print_step "Setting up persistent storage..."
+    
+    # Create the data directory on minikube node
+    local data_path="/data/seneca-bookstore"
+    
+    print_status "Creating persistent data directory..."
+    minikube ssh -- sudo mkdir -p "$data_path"
+    minikube ssh -- sudo chmod 777 "$data_path"
+    
+    # Check if there's existing data and preserve it
+    if minikube ssh -- "[ -f $data_path/users.db ] || [ -f $data_path/catalog.db ] || [ -f $data_path/orders.db ]"; then
+        print_status "Found existing database files - preserving data"
+        EXISTING_DATA=true
+    else
+        print_status "No existing data found - will seed fresh data"
+        EXISTING_DATA=false
+    fi
+    
+    print_success "Persistent storage configured!"
+}
+
+# Function to backup existing data
+backup_data() {
+    if [ "$EXISTING_DATA" = true ]; then
+        print_step "Creating data backup..."
+        
+        local backup_dir="/data/seneca-bookstore/backup_$(date +%Y%m%d_%H%M%S)"
+        minikube ssh -- sudo mkdir -p "$backup_dir"
+        
+        # Backup database files
+        minikube ssh -- sudo cp -f /data/seneca-bookstore/*.db "$backup_dir/" 2>/dev/null || true
+        
+        print_success "Data backed up to: $backup_dir"
+    fi
+}
+
+# Function to check if data seeding is needed
+check_data_seeding_needed() {
+    print_step "Checking if data seeding is needed..."
+    
+    # Wait for services to be ready first
+    sleep 15
+    
+    # Check if we have users in the database
+    local user_count=$(kubectl exec -n $NAMESPACE deployment/user-service -- python -c "
+import requests
+try:
+    response = requests.get('http://localhost:8000/')
+    if response.status_code == 200:
+        # Try to create a test admin to see if data exists
+        test_response = requests.post('http://localhost:8000/register', json={
+            'email': 'test_check@example.com',
+            'password': 'test123',
+            'is_admin': False
+        })
+        if test_response.status_code == 400 and 'already registered' in test_response.text:
+            print('DATA_EXISTS')
+        else:
+            print('NO_DATA')
+    else:
+        print('SERVICE_NOT_READY')
+except Exception as e:
+    print('ERROR')
+" 2>/dev/null || echo "ERROR")
+    
+    if [ "$user_count" = "DATA_EXISTS" ]; then
+        print_status "Existing user data found - skipping data seeding"
+        SKIP_DATA_SEEDING=true
+    else
+        print_status "No existing data found - will seed comprehensive test data"
+        SKIP_DATA_SEEDING=false
+    fi
+}
+
 # Function to install cert-manager
 install_cert_manager() {
     print_step "Installing cert-manager..."
@@ -605,11 +681,27 @@ run_k8s_tests() {
 
 # Function to seed initial data for Kubernetes
 seed_k8s_data() {
-    print_step "Seeding comprehensive test data for Kubernetes..."
+    print_step "Managing test data for Kubernetes..."
+    
+    # Check if force reload is requested
+    if [ "$FORCE_DATA_RELOAD" = true ]; then
+        print_status "Force data reload requested - will reload all test data"
+        SKIP_DATA_SEEDING=false
+    else
+        # Check if data seeding is needed
+        check_data_seeding_needed
+    fi
+    
+    if [ "$SKIP_DATA_SEEDING" = true ]; then
+        print_status "Existing data found - skipping data seeding"
+        print_status "To force reload data, use: ./deploy.sh --kubernetes --force-data-reload"
+        print_success "Using existing persistent data"
+        return 0
+    fi
     
     # Check if test data exists
     if [ ! -f "test_data/complete_dataset.json" ]; then
-        print_status "Generating test data..."
+        print_status "Generating comprehensive test data..."
         python3 scripts/generate_test_data.py || {
             print_error "Failed to generate test data"
             return 1
@@ -618,11 +710,17 @@ seed_k8s_data() {
     
     # Wait for services to be ready
     print_status "Waiting for services to be ready..."
-    sleep 15
+    sleep 20
     
     # Load comprehensive test data
     print_status "Loading comprehensive test data..."
-    python3 scripts/load_test_data.py --env kubernetes || {
+    if python3 scripts/load_test_data.py --env kubernetes; then
+        print_success "Comprehensive test data loaded successfully!"
+        
+        # Save loading timestamp for future reference
+        echo "{\"last_loaded\": \"$(date -Iseconds)\", \"environment\": \"kubernetes\"}" > test_data/last_load.json
+        
+    else
         print_warning "Failed to load comprehensive test data, falling back to basic seeding..."
         
         # Fallback to basic user creation
@@ -661,12 +759,40 @@ try:
 except Exception as e:
     print(f'Error creating regular user: {e}')
 " || print_warning "Failed to create regular user (may already exist)"
-    }
+    fi
     
     print_success "Kubernetes data seeding completed!"
     print_status "Access the application at: https://senecabooks.local"
     print_status "Admin credentials: admin@senecabooks.com / admin123"
     print_status "User credentials: john.doe@example.com / password123"
+    
+    # Display data summary
+    print_status "Data Summary:"
+    kubectl exec -n $NAMESPACE deployment/user-service -- python -c "
+import requests
+try:
+    response = requests.get('http://localhost:8000/')
+    print('✅ User service: Available')
+except:
+    print('❌ User service: Not responding')
+"
+    
+    kubectl exec -n $NAMESPACE deployment/catalog-service -- python -c "
+import requests
+try:
+    response = requests.get('http://localhost:8000/books')
+    if response.status_code == 200:
+        books = response.json()
+        if isinstance(books, list):
+            print(f'✅ Catalog service: {len(books)} books available')
+        else:
+            print('✅ Catalog service: Available')
+    else:
+        print('⚠️  Catalog service: Available but no data')
+except:
+    print('❌ Catalog service: Not responding')
+"
+}
 }
 
 # Function to deploy to Kubernetes
@@ -681,6 +807,8 @@ deploy_kubernetes() {
     check_minikube
     enable_addons
     install_cert_manager
+    setup_persistent_storage
+    backup_data
     setup_registry
     push_images
     apply_configs
@@ -873,6 +1001,7 @@ deploy_both() {
 # Parse arguments
 DEPLOYMENT_MODE="both"
 SKIP_K8S=false
+FORCE_DATA_RELOAD=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -886,6 +1015,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --both)
             DEPLOYMENT_MODE="both"
+            shift
+            ;;
+        --force-data-reload)
+            FORCE_DATA_RELOAD=true
             shift
             ;;
         *)
