@@ -1,0 +1,352 @@
+[
+  {
+    "email": "admin@senecabooks.com",
+    "password": "admin123",
+    "full_name": "System Administrator",
+    "is_admin": true,
+    "created_at": "2024-08-20T23:50:01.231723"
+  },
+  {
+    "email": "john.doe@example.com",
+    "password": "password123",
+    "full_name": "John Doe",
+    "is_admin": false,
+    "created_at": "2024-10-30T23:50:01.231757"
+  },
+  {
+    "email": "jane.smith@example.com",
+    "password": "password123",
+    "full_name": "Jane Smith",
+    "is_admin": false,
+    "created_at": "2025-07-17T23:50:01.231763"
+  },
+  {
+    "email": "alice.johnson@example.com",
+    "password": "password123",
+    "full_name": "Alice Johnson",
+    "is_admin": false,
+    "created_at": "2025-04-10T23:50:01.231766"
+  },
+  {
+    "email": "bob.wilson@example.com",
+    "password": "password123",
+    "full_name": "Bob Wilson",
+    "is_admin": false,
+    "created_at": "2025-05-11T23:50:01.231768"
+  },
+  {
+    "email": "sarah.brown@example.com",
+    "password": "password123",
+    "full_name": "Sarah Brown",
+    "is_admin": false,
+    "created_at": "2025-06-10T23:50:01.231770"
+  },
+  {
+    "email": "mike.davis@example.com",
+    "password": "password123",
+    "full_name": "Mike Davis",
+    "is_admin": false,
+    "created_at": "2024-09-27T23:50:01.231772"
+  },
+  {
+    "email": "emma.garcia@example.com",
+    "password": "password123",
+    "full_name": "Emma Garcia",
+    "is_admin": false,
+    "created_at": "2024-08-30T23:50:01.231774"
+  },
+  {
+    "email": "chris.martinez@example.com",
+    "password": "password123",
+    "full_name": "Chris Martinez",
+    "is_admin": false,
+    "created_at": "2024-11-18T23:50:01.231775"
+  },
+  {
+    "email": "lisa.anderson@example.com",
+    "password": "password123",
+    "full_name": "Lisa Anderson",
+    "is_admin": false,
+    "created_at": "2024-11-10T23:50:01.231777"
+  },
+  {
+    "email": "matthew.moore638@example.com",
+    "password": "password123",
+    "full_name": "Matthew Moore",
+    "is_admin": false,
+    "created_at": "2024-10-17T23:50:01.232149"
+  },
+  {
+    "email": "linda.jones@yahoo.com",
+    "password": "password123",
+    "full_name": "Linda Jones",
+    "is_admin": false,
+    "created_at": "2024-12-08T23:50:01.232163"
+  },
+  {
+    "email": "helen.walker382@outlook.com",
+    "password": "password123",
+    "full_name": "Helen Walker",
+    "is_admin": false,
+    "created_at": "2024-08-06T23:50:01.232169"
+  },
+  {
+    "email": "christopher.martinez177@example.com",
+    "password": "password123",
+    "full_name": "Christopher Martinez",
+    "is_admin": false,
+    "created_at": "2025-04-06T23:50:01.232175"
+  },
+  {
+    "email": "mary.davis216@outlook.com",
+    "password": "password123",
+    "full_name": "Mary Davis",
+    "is_admin": false,
+    "created_at": "2024-10-08T23:50:01.232179"
+  },
+  {
+    "email": "john.miller250@gmail.com",
+    "password": "password123",
+    "full_name": "John Miller",
+    "is_admin": false,
+    "created_at": "2025-03-21T23:50:01.232182"
+  },
+  {
+    "email": "james.lee191@gmail.com",
+    "password": "password123",
+    "full_name": "James Lee",
+    "is_admin": false,
+    "created_at": "2025-07-11T23:50:01.232185"
+  },
+  {
+    "email": "karen.wilson@gmail.com",
+    "password": "password123",
+    "full_name": "Karen Wilson",
+    "is_admin": false,
+    "created_at": "2024-11-17T23:50:01.232188"
+  },
+  {
+    "email": "elizabeth.white@example.com",
+    "password": "password123",
+    "full_name": "Elizabeth White",
+    "is_admin": false,
+    "created_at": "2025-06-13T23:50:01.232190"
+  },
+  {
+    "email": "susan.lewis@email.com",
+    "password": "password123",
+    "full_name": "Susan Lewis",
+    "is_admin": false,
+    "created_at": "2025-02-25T23:50:01.232195"
+  },
+  {
+    "email": "lisa.miller999@example.com",
+    "password": "password123",
+    "full_name": "Lisa Miller",
+    "is_admin": false,
+    "created_at": "2025-04-02T23:50:01.232198"
+  },
+  {
+    "email": "anthony.lopez@gmail.com",
+    "password": "password123",
+    "full_name": "Anthony Lopez",
+    "is_admin": false,
+    "created_at": "2025-07-05T23:50:01.232201"
+  },
+  {
+    "email": "christopher.walker@example.com",
+    "password": "password123",
+    "full_name": "Christopher Walker",
+    "is_admin": false,
+    "created_at": "2025-07-27T23:50:01.232203"
+  },
+  {
+    "email": "barbara.williams@example.com",
+    "password": "password123",
+    "full_name": "Barbara Williams",
+    "is_admin": false,
+    "created_at": "2025-01-08T23:50:01.232206"
+  },
+  {
+    "email": "david.hernandez@hotmail.com",
+    "password": "password123",
+    "full_name": "David Hernandez",
+    "is_admin": false,
+    "created_at": "2024-09-15T23:50:01.232208"
+  },
+  {
+    "email": "mark.walker927@gmail.com",
+    "password": "password123",
+    "full_name": "Mark Walker",
+    "is_admin": false,
+    "created_at": "2025-05-26T23:50:01.232211"
+  },
+  {
+    "email": "patricia.thompson@outlook.com",
+    "password": "password123",
+    "full_name": "Patricia Thompson",
+    "is_admin": false,
+    "created_at": "2024-08-13T23:50:01.232214"
+  },
+  {
+    "email": "donald.rodriguez99@email.com",
+    "password": "password123",
+    "full_name": "Donald Rodriguez",
+    "is_admin": false,
+    "created_at": "2024-12-07T23:50:01.232216"
+  },
+  {
+    "email": "joseph.sanchez@gmail.com",
+    "password": "password123",
+    "full_name": "Joseph Sanchez",
+    "is_admin": false,
+    "created_at": "2025-04-25T23:50:01.232219"
+  },
+  {
+    "email": "helen.martinez@hotmail.com",
+    "password": "password123",
+    "full_name": "Helen Martinez",
+    "is_admin": true,
+    "created_at": "2024-08-15T23:50:01.232222"
+  },
+  {
+    "email": "robert.white@example.com",
+    "password": "password123",
+    "full_name": "Robert White",
+    "is_admin": false,
+    "created_at": "2025-03-10T23:50:01.232224"
+  },
+  {
+    "email": "william.williams@yahoo.com",
+    "password": "password123",
+    "full_name": "William Williams",
+    "is_admin": false,
+    "created_at": "2025-04-12T23:50:01.232227"
+  },
+  {
+    "email": "lisa.williams@outlook.com",
+    "password": "password123",
+    "full_name": "Lisa Williams",
+    "is_admin": false,
+    "created_at": "2025-02-01T23:50:01.232229"
+  },
+  {
+    "email": "robert.white@yahoo.com",
+    "password": "password123",
+    "full_name": "Robert White",
+    "is_admin": false,
+    "created_at": "2024-10-26T23:50:01.232232"
+  },
+  {
+    "email": "jessica.miller@example.com",
+    "password": "password123",
+    "full_name": "Jessica Miller",
+    "is_admin": false,
+    "created_at": "2024-12-21T23:50:01.232234"
+  },
+  {
+    "email": "sandra.taylor566@email.com",
+    "password": "password123",
+    "full_name": "Sandra Taylor",
+    "is_admin": false,
+    "created_at": "2025-03-06T23:50:01.232237"
+  },
+  {
+    "email": "patricia.sanchez974@hotmail.com",
+    "password": "password123",
+    "full_name": "Patricia Sanchez",
+    "is_admin": false,
+    "created_at": "2024-09-10T23:50:01.232240"
+  },
+  {
+    "email": "donna.gonzalez@example.com",
+    "password": "password123",
+    "full_name": "Donna Gonzalez",
+    "is_admin": false,
+    "created_at": "2024-10-06T23:50:01.232253"
+  },
+  {
+    "email": "elizabeth.perez@hotmail.com",
+    "password": "password123",
+    "full_name": "Elizabeth Perez",
+    "is_admin": false,
+    "created_at": "2025-03-16T23:50:01.232257"
+  },
+  {
+    "email": "richard.thomas302@example.com",
+    "password": "password123",
+    "full_name": "Richard Thomas",
+    "is_admin": false,
+    "created_at": "2024-12-15T23:50:01.232260"
+  },
+  {
+    "email": "john.lee@gmail.com",
+    "password": "password123",
+    "full_name": "John Lee",
+    "is_admin": false,
+    "created_at": "2025-01-03T23:50:01.232262"
+  },
+  {
+    "email": "anthony.martin387@example.com",
+    "password": "password123",
+    "full_name": "Anthony Martin",
+    "is_admin": false,
+    "created_at": "2025-07-08T23:50:01.232265"
+  },
+  {
+    "email": "susan.moore@yahoo.com",
+    "password": "password123",
+    "full_name": "Susan Moore",
+    "is_admin": false,
+    "created_at": "2025-06-30T23:50:01.232268"
+  },
+  {
+    "email": "sarah.jackson321@email.com",
+    "password": "password123",
+    "full_name": "Sarah Jackson",
+    "is_admin": false,
+    "created_at": "2025-06-01T23:50:01.232270"
+  },
+  {
+    "email": "donald.clark733@example.com",
+    "password": "password123",
+    "full_name": "Donald Clark",
+    "is_admin": false,
+    "created_at": "2025-05-12T23:50:01.232273"
+  },
+  {
+    "email": "susan.moore518@outlook.com",
+    "password": "password123",
+    "full_name": "Susan Moore",
+    "is_admin": false,
+    "created_at": "2025-05-21T23:50:01.232276"
+  },
+  {
+    "email": "christopher.white259@example.com",
+    "password": "password123",
+    "full_name": "Christopher White",
+    "is_admin": false,
+    "created_at": "2025-02-28T23:50:01.232280"
+  },
+  {
+    "email": "donald.miller64@hotmail.com",
+    "password": "password123",
+    "full_name": "Donald Miller",
+    "is_admin": false,
+    "created_at": "2024-10-03T23:50:01.232284"
+  },
+  {
+    "email": "anthony.davis@outlook.com",
+    "password": "password123",
+    "full_name": "Anthony Davis",
+    "is_admin": false,
+    "created_at": "2025-02-26T23:50:01.232286"
+  },
+  {
+    "email": "david.hernandez@hotmail.com",
+    "password": "password123",
+    "full_name": "David Hernandez",
+    "is_admin": false,
+    "created_at": "2025-05-18T23:50:01.232290"
+  }
+]

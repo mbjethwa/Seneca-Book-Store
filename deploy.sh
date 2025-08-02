@@ -152,11 +152,11 @@ services:
       - DATABASE_URL=sqlite:///./users.db
       - ACCESS_TOKEN_EXPIRE_MINUTES=60
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health').raise_for_status()"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 40s
+      retries: 5
+      start_period: 60s
     restart: unless-stopped
     volumes:
       - user_data:/app
@@ -169,16 +169,16 @@ services:
       - PORT=8000
       - DATABASE_URL=sqlite:///./catalog.db
       - USER_SERVICE_URL=http://user-service:8000
-      - ADMIN_EMAILS=admin@seneca.ca,admin@example.com
+      - ADMIN_EMAILS=admin@senecabooks.com,librarian@senecabooks.com
     depends_on:
       user-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health').raise_for_status()"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 40s
+      retries: 5
+      start_period: 60s
     restart: unless-stopped
     volumes:
       - catalog_data:/app
@@ -198,11 +198,11 @@ services:
       catalog-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health').raise_for_status()"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 40s
+      retries: 5
+      start_period: 60s
     restart: unless-stopped
     volumes:
       - order_data:/app
@@ -211,17 +211,14 @@ services:
     image: ${REGISTRY}/frontend-service:${VERSION}
     ports:
       - "3000:80"
-    depends_on:
-      user-service:
-        condition: service_healthy
-      catalog-service:
-        condition: service_healthy
-      order-service:
-        condition: service_healthy
     environment:
       - REACT_APP_USER_SERVICE_URL=http://localhost:8001
       - REACT_APP_CATALOG_SERVICE_URL=http://localhost:8002
       - REACT_APP_ORDER_SERVICE_URL=http://localhost:8003
+    depends_on:
+      - user-service
+      - catalog-service
+      - order-service
     restart: unless-stopped
 
 volumes:
@@ -237,17 +234,79 @@ EOF
     print_success "docker-compose.yml created successfully"
 }
 
+# Function to wait for service to be ready
+wait_for_service() {
+    local service_name=$1
+    local port=$2
+    local timeout=$3
+    local max_attempts=$((timeout / 2))
+    local attempt=1
+    
+    print_status "Waiting for $service_name to be ready (timeout: ${timeout}s)..."
+    
+    while [ $attempt -le $max_attempts ]; do
+        if curl -f -s "http://localhost:${port}/health" > /dev/null 2>&1; then
+            print_success "$service_name is ready"
+            return 0
+        fi
+        
+        if [ $attempt -eq $max_attempts ]; then
+            print_warning "$service_name health check failed after ${timeout}s"
+            print_status "Checking container logs for $service_name..."
+            docker-compose logs --tail=20 $service_name
+            return 1
+        fi
+        
+        echo -n "."
+        sleep 2
+        ((attempt++))
+    done
+}
+
 # Function to deploy with Docker Compose
 deploy_docker_compose() {
     print_step "Deploying with Docker Compose..."
     
-    # Stop existing containers
-    docker-compose down 2>/dev/null || true
+    # Stop existing containers and clean up
+    print_status "Cleaning up existing containers..."
+    docker-compose down --volumes --remove-orphans 2>/dev/null || true
     
-    # Start services
-    docker-compose up -d
+    # Start services in proper order with retries
+    print_status "Starting services..."
     
-    print_success "Docker Compose deployment completed"
+    # Start user service first
+    print_status "Starting user-service..."
+    docker-compose up -d user-service
+    
+    # Wait for user service to be healthy
+    wait_for_service "user-service" 8001 60
+    
+    # Start catalog service
+    print_status "Starting catalog-service..."
+    docker-compose up -d catalog-service
+    
+    # Wait for catalog service to be healthy
+    wait_for_service "catalog-service" 8002 60
+    
+    # Start order service
+    print_status "Starting order-service..."
+    docker-compose up -d order-service
+    
+    # Wait for order service to be healthy
+    wait_for_service "order-service" 8003 60
+    
+    # Start frontend service
+    print_status "Starting frontend-service..."
+    docker-compose up -d frontend-service
+    
+    # Wait a bit for frontend to start
+    sleep 10
+    
+    print_success "Docker Compose deployment completed!"
+    
+    # Show service status
+    print_status "Service Status:"
+    docker-compose ps
     
     # Wait for services to be ready
     print_status "Waiting for services to be ready..."
@@ -292,15 +351,34 @@ deploy_docker_compose() {
 
 # Function to seed data for Docker Compose
 seed_docker_data() {
-    print_step "Seeding initial data for Docker Compose..."
+    print_step "Seeding comprehensive test data for Docker Compose..."
     
-    print_status "Creating admin user..."
-    docker-compose exec -T user-service python -c "
+    # Check if test data exists
+    if [ ! -f "test_data/complete_dataset.json" ]; then
+        print_status "Generating test data..."
+        python3 scripts/generate_test_data.py || {
+            print_error "Failed to generate test data"
+            return 1
+        }
+    fi
+    
+    # Wait for services to be ready
+    print_status "Waiting for services to be ready..."
+    sleep 10
+    
+    # Load comprehensive test data
+    print_status "Loading comprehensive test data..."
+    python3 scripts/load_test_data.py --env development || {
+        print_warning "Failed to load comprehensive test data, falling back to basic seeding..."
+        
+        # Fallback to basic user creation
+        print_status "Creating admin user..."
+        docker-compose exec -T user-service python -c "
 import requests
 import sys
 try:
     response = requests.post('http://localhost:8000/register', json={
-        'email': 'admin@seneca.ca',
+        'email': 'admin@senecabooks.com',
         'password': 'admin123',
         'is_admin': True
     })
@@ -311,15 +389,15 @@ try:
 except Exception as e:
     print(f'Error creating admin user: {e}')
 " || print_warning "Failed to create admin user (may already exist)"
-    
-    print_status "Creating regular user..."
-    docker-compose exec -T user-service python -c "
+        
+        print_status "Creating regular user..."
+        docker-compose exec -T user-service python -c "
 import requests
 import sys
 try:
     response = requests.post('http://localhost:8000/register', json={
-        'email': 'user@seneca.ca',
-        'password': 'user123',
+        'email': 'john.doe@example.com',
+        'password': 'password123',
         'is_admin': False
     })
     if response.status_code in [200, 201]:
@@ -329,8 +407,12 @@ try:
 except Exception as e:
     print(f'Error creating regular user: {e}')
 " || print_warning "Failed to create regular user (may already exist)"
+    }
     
     print_success "Docker Compose data seeding completed!"
+    print_status "Access the application at: http://localhost:3000"
+    print_status "Admin credentials: admin@senecabooks.com / admin123"
+    print_status "User credentials: john.doe@example.com / password123"
 }
 
 # ==============================
@@ -523,15 +605,34 @@ run_k8s_tests() {
 
 # Function to seed initial data for Kubernetes
 seed_k8s_data() {
-    print_step "Seeding initial data for Kubernetes..."
+    print_step "Seeding comprehensive test data for Kubernetes..."
     
-    print_status "Creating admin user..."
-    kubectl exec -n $NAMESPACE deployment/user-service -- python -c "
+    # Check if test data exists
+    if [ ! -f "test_data/complete_dataset.json" ]; then
+        print_status "Generating test data..."
+        python3 scripts/generate_test_data.py || {
+            print_error "Failed to generate test data"
+            return 1
+        }
+    fi
+    
+    # Wait for services to be ready
+    print_status "Waiting for services to be ready..."
+    sleep 15
+    
+    # Load comprehensive test data
+    print_status "Loading comprehensive test data..."
+    python3 scripts/load_test_data.py --env kubernetes || {
+        print_warning "Failed to load comprehensive test data, falling back to basic seeding..."
+        
+        # Fallback to basic user creation
+        print_status "Creating admin user..."
+        kubectl exec -n $NAMESPACE deployment/user-service -- python -c "
 import requests
 import sys
 try:
     response = requests.post('http://localhost:8000/register', json={
-        'email': 'admin@seneca.ca',
+        'email': 'admin@senecabooks.com',
         'password': 'admin123',
         'is_admin': True
     })
@@ -542,15 +643,15 @@ try:
 except Exception as e:
     print(f'Error creating admin user: {e}')
 " || print_warning "Failed to create admin user (may already exist)"
-    
-    print_status "Creating regular user..."
-    kubectl exec -n $NAMESPACE deployment/user-service -- python -c "
+        
+        print_status "Creating regular user..."
+        kubectl exec -n $NAMESPACE deployment/user-service -- python -c "
 import requests
 import sys
 try:
     response = requests.post('http://localhost:8000/register', json={
-        'email': 'user@seneca.ca',
-        'password': 'user123',
+        'email': 'john.doe@example.com',
+        'password': 'password123',
         'is_admin': False
     })
     if response.status_code in [200, 201]:
@@ -560,34 +661,12 @@ try:
 except Exception as e:
     print(f'Error creating regular user: {e}')
 " || print_warning "Failed to create regular user (may already exist)"
-    
-    print_status "Creating sample books..."
-    kubectl exec -n $NAMESPACE deployment/catalog-service -- python -c "
-import requests
-import sys
-try:
-    # First login as admin to get token
-    login_response = requests.post('http://user-service:8000/login', data={
-        'username': 'admin@seneca.ca',
-        'password': 'admin123'
-    })
-    if login_response.status_code == 200:
-        token = login_response.json().get('access_token')
-        headers = {'Authorization': f'Bearer {token}'}
-        
-        # Seed books
-        seed_response = requests.post('http://localhost:8000/books/seed', headers=headers)
-        if seed_response.status_code == 200:
-            print('Sample books created successfully')
-        else:
-            print('Sample books may already exist')
-    else:
-        print('Failed to login as admin')
-except Exception as e:
-    print(f'Error seeding books: {e}')
-" || print_warning "Failed to seed books"
+    }
     
     print_success "Kubernetes data seeding completed!"
+    print_status "Access the application at: https://senecabooks.local"
+    print_status "Admin credentials: admin@senecabooks.com / admin123"
+    print_status "User credentials: john.doe@example.com / password123"
 }
 
 # Function to deploy to Kubernetes

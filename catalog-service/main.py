@@ -22,7 +22,7 @@ logging.basicConfig(
 logger = logging.getLogger("catalog-service")
 
 # Initialize Prometheus metrics
-metrics = PrometheusMetrics(service_name="catalog")
+metrics = PrometheusMetrics(app_name="catalog")
 
 app = FastAPI(
     title="Catalog Service", 
@@ -33,30 +33,17 @@ app = FastAPI(
 @app.middleware("http")
 async def metrics_middleware(request: Request, call_next):
     """Collect metrics for all requests."""
-    start_time = time.time()
-    
-    # Record request
-    metrics.requests_total.labels(
-        method=request.method,
-        endpoint=request.url.path,
-        service="catalog"
-    ).inc()
+    start_time = metrics.start_request()
     
     response = await call_next(request)
     
-    # Record response time
-    duration = time.time() - start_time
-    metrics.request_duration.labels(
-        method=request.method,
-        endpoint=request.url.path,
-        service="catalog"
-    ).observe(duration)
+    # Calculate processing time
+    process_time = time.time() - start_time
+    metrics.end_request()
     
-    # Record response status
-    metrics.responses_total.labels(
-        status_code=response.status_code,
-        service="catalog"
-    ).inc()
+    # Record metrics
+    endpoint = request.url.path
+    metrics.record_request(request.method, endpoint, response.status_code, process_time)
     
     return response
 
@@ -166,7 +153,7 @@ async def get_popular_subjects():
 
 @app.get("/books/external/subject/{subject}", response_model=schemas.ExternalBookSearchResponse)
 async def get_books_by_subject(
-    subject: str = Query(..., description="Subject category (e.g., 'science_fiction', 'history')"),
+    subject: str,
     limit: int = Query(20, ge=1, le=100, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Number of results to skip")
 ):

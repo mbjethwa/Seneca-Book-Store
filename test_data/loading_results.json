@@ -1,0 +1,16 @@
+{
+  "environment": "development",
+  "loaded_at": 20910.984034763,
+  "users_created": 49,
+  "books_created": 200,
+  "orders_created": 0,
+  "verification": {
+    "user_service": true,
+    "books_count": 0,
+    "orders_accessible": true,
+    "catalog_service": true,
+    "order_service": true
+  },
+  "admin_token_set": true,
+  "user_tokens_count": 49
+}

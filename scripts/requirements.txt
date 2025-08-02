@@ -1,0 +1,20 @@
+# Requirements for test data generation and loading scripts
+# Install with: pip install -r scripts/requirements.txt
+
+# HTTP client for API calls
+httpx>=0.25.0
+
+# JSON handling (built-in, but explicit for clarity)
+# json - built-in
+
+# Async support (built-in in Python 3.7+)
+# asyncio - built-in
+
+# Path handling (built-in)
+# pathlib - built-in
+
+# System utilities (built-in)
+# os, sys - built-in
+
+# Command line argument parsing (built-in)
+# argparse - built-in

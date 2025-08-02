@@ -29,7 +29,7 @@ spec:
         - name: PORT
           value: "8000"
         - name: DATABASE_URL
-          value: "sqlite:///data/orders.db"
+          value: "sqlite:///./orders.db"
         - name: USER_SERVICE_URL
           valueFrom:
             configMapKeyRef:
@@ -45,9 +45,6 @@ spec:
             configMapKeyRef:
               name: bookstore-config
               key: CORS_ORIGINS
-        volumeMounts:
-        - name: data-storage
-          mountPath: /data
         resources:
           limits:
             cpu: 500m
@@ -67,10 +64,6 @@ spec:
             port: 8000
           initialDelaySeconds: 5
           periodSeconds: 5
-      volumes:
-      - name: data-storage
-        persistentVolumeClaim:
-          claimName: bookstore-data-pvc
 ---
 apiVersion: v1
 kind: Service

@@ -21,7 +21,7 @@ logging.basicConfig(
 logger = logging.getLogger("order-service")
 
 # Initialize Prometheus metrics
-metrics = PrometheusMetrics(service_name="order")
+metrics = PrometheusMetrics(app_name="order")
 
 app = FastAPI(
     title="Order Service", 
@@ -32,30 +32,17 @@ app = FastAPI(
 @app.middleware("http")
 async def metrics_middleware(request: Request, call_next):
     """Collect metrics for all requests."""
-    start_time = time.time()
-    
-    # Record request
-    metrics.requests_total.labels(
-        method=request.method,
-        endpoint=request.url.path,
-        service="order"
-    ).inc()
+    start_time = metrics.start_request()
     
     response = await call_next(request)
     
-    # Record response time
-    duration = time.time() - start_time
-    metrics.request_duration.labels(
-        method=request.method,
-        endpoint=request.url.path,
-        service="order"
-    ).observe(duration)
+    # Calculate processing time
+    process_time = time.time() - start_time
+    metrics.end_request()
     
-    # Record response status
-    metrics.responses_total.labels(
-        status_code=response.status_code,
-        service="order"
-    ).inc()
+    # Record metrics
+    endpoint = request.url.path
+    metrics.record_request(request.method, endpoint, response.status_code, process_time)
     
     return response
 

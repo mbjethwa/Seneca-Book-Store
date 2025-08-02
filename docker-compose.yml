@@ -11,12 +11,14 @@ services:
       - DATABASE_URL=sqlite:///./users.db
       - ACCESS_TOKEN_EXPIRE_MINUTES=60
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health').raise_for_status()"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 40s
+      retries: 5
+      start_period: 60s
     restart: unless-stopped
+    volumes:
+      - user_data:/app
 
   catalog-service:
     image: localhost:5000/catalog-service:latest
@@ -26,16 +28,16 @@ services:
       - PORT=8000
       - DATABASE_URL=sqlite:///./catalog.db
       - USER_SERVICE_URL=http://user-service:8000
-      - ADMIN_EMAILS=admin@seneca.ca,admin@example.com
+      - ADMIN_EMAILS=admin@senecabooks.com,librarian@senecabooks.com
     depends_on:
       user-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health').raise_for_status()"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 40s
+      retries: 5
+      start_period: 60s
     restart: unless-stopped
 
   order-service:
@@ -53,30 +55,32 @@ services:
       catalog-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health').raise_for_status()"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 40s
+      retries: 5
+      start_period: 60s
     restart: unless-stopped
 
   frontend-service:
     image: localhost:5000/frontend-service:latest
     ports:
       - "3000:80"
-    depends_on:
-      user-service:
-        condition: service_healthy
-      catalog-service:
-        condition: service_healthy
-      order-service:
-        condition: service_healthy
     environment:
       - REACT_APP_USER_SERVICE_URL=http://localhost:8001
       - REACT_APP_CATALOG_SERVICE_URL=http://localhost:8002
       - REACT_APP_ORDER_SERVICE_URL=http://localhost:8003
+    depends_on:
+      - user-service
+      - catalog-service
+      - order-service
     restart: unless-stopped
+
+volumes:
+  user_data:
+  catalog_data:
+  order_data:
 
 networks:
   default:
-    name: seneca-book-store-network
+    name: seneca-bookstore-network

@@ -25,8 +25,6 @@ metadata:
   name: senecabooks-ingress
   namespace: seneca-bookstore
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
-    nginx.ingress.kubernetes.io/use-regex: "true"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     cert-manager.io/cluster-issuer: "selfsigned-issuer"
@@ -39,48 +37,33 @@ spec:
   - host: senecabooks.local
     http:
       paths:
-      # Frontend (Root)
-      - path: /()(.*)
-        pathType: Prefix
-        backend:
-          service:
-            name: frontend-service
-            port:
-              number: 80
-      # API Routes
-      - path: /api/user(/|$)(.*)
+      # API Routes (must come first, more specific)
+      - path: /api/user
         pathType: Prefix
         backend:
           service:
             name: user-service
             port:
               number: 8000
-      - path: /api/catalog(/|$)(.*)
+      - path: /api/catalog
         pathType: Prefix
         backend:
           service:
             name: catalog-service
             port:
               number: 8000
-      - path: /api/order(/|$)(.*)
+      - path: /api/order
         pathType: Prefix
         backend:
           service:
             name: order-service
             port:
               number: 8000
-      # Monitoring Routes
-      - path: /prometheus(/|$)(.*)
+      # Frontend (Root - catch-all, must be last)
+      - path: /
         pathType: Prefix
         backend:
           service:
-            name: prometheus
+            name: frontend-service
             port:
-              number: 9090
-      - path: /grafana(/|$)(.*)
-        pathType: Prefix
-        backend:
-          service:
-            name: grafana
-            port:
-              number: 3000
+              number: 80
