@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# 🚀 Seneca Book Store - Unified Deployment Script
-# This script supports both Docker Compose and Kubernetes deployments
+# 🚀 Seneca Book Store - Streamlined Minikube Deployment Script
+# Default deployment to Minikube with phase-wise execution
 
 set -e  # Exit on any error
 
@@ -21,11 +21,22 @@ REGISTRY="localhost:5000"
 VERSION="latest"
 DOMAIN="senecabooks.local"
 
+# Phase tracking
+CURRENT_PHASE=0
+TOTAL_PHASES=6
+
 # Function to print colored output
 print_header() {
     echo -e "${PURPLE}========================================${NC}"
-    echo -e "${PURPLE}   Seneca Book Store Deployment Script   ${NC}"
+    echo -e "${PURPLE}   Seneca Book Store - Minikube Deploy   ${NC}"
     echo -e "${PURPLE}========================================${NC}"
+}
+
+print_phase() {
+    CURRENT_PHASE=$((CURRENT_PHASE + 1))
+    echo
+    echo -e "${PURPLE}📋 PHASE ${CURRENT_PHASE}/${TOTAL_PHASES}: $1${NC}"
+    echo -e "${PURPLE}----------------------------------------${NC}"
 }
 
 print_status() {
@@ -33,19 +44,20 @@ print_status() {
 }
 
 print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+    echo -e "${GREEN}[SUCCESS]${NC} ✅ $1"
 }
 
 print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+    echo -e "${YELLOW}[WARNING]${NC} ⚠️  $1"
 }
 
 print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    echo -e "${RED}[ERROR]${NC} ❌ $1"
+    exit 1
 }
 
 print_step() {
-    echo -e "${CYAN}[STEP]${NC} $1"
+    echo -e "${CYAN}[STEP]${NC} 🔧 $1"
 }
 
 # Function to check if command exists
@@ -53,882 +65,380 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# Function to check prerequisites
+# Phase 1: Prerequisites Check
 check_prerequisites() {
-    print_step "Checking prerequisites..."
+    print_phase "Prerequisites & Environment Check"
     
-    local missing_deps=()
+    print_step "Checking required tools..."
     
+    # Check Docker
     if ! command_exists docker; then
-        missing_deps+=("docker")
+        print_error "Docker is not installed. Please install Docker first."
     fi
     
-    if ! command_exists npm; then
-        missing_deps+=("npm")
+    if ! docker info >/dev/null 2>&1; then
+        print_error "Docker daemon is not running. Please start Docker."
+    fi
+    print_success "Docker is running"
+    
+    # Check kubectl
+    if ! command_exists kubectl; then
+        print_error "kubectl is not installed. Please install kubectl first."
+    fi
+    print_success "kubectl is available"
+    
+    # Check minikube
+    if ! command_exists minikube; then
+        print_error "Minikube is not installed. Please install Minikube first."
+    fi
+    print_success "Minikube is available"
+    
+    # Check system resources
+    print_step "Checking system resources..."
+    
+    # Check memory (require at least 4GB)
+    MEMORY_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+    MEMORY_GB=$((MEMORY_KB / 1024 / 1024))
+    
+    if [ $MEMORY_GB -lt 4 ]; then
+        print_warning "System has only ${MEMORY_GB}GB RAM. Minikube requires at least 4GB."
+    else
+        print_success "System memory: ${MEMORY_GB}GB (sufficient)"
     fi
     
-    # Check for optional dependencies based on deployment mode
-    if [ "$DEPLOYMENT_MODE" = "kubernetes" ] || [ "$DEPLOYMENT_MODE" = "both" ]; then
-        if ! command_exists kubectl; then
-            if [ "$DEPLOYMENT_MODE" = "kubernetes" ]; then
-                missing_deps+=("kubectl")
-            else
-                print_warning "kubectl not found - Kubernetes deployment will be skipped"
-                SKIP_K8S=true
-            fi
-        fi
-        
-        if ! command_exists minikube; then
-            if [ "$DEPLOYMENT_MODE" = "kubernetes" ]; then
-                missing_deps+=("minikube")
-            else
-                print_warning "minikube not found - Kubernetes deployment will be skipped"
-                SKIP_K8S=true
-            fi
-        fi
-    fi
-    
-    if ! command_exists helm; then
-        print_warning "Helm not found - some Kubernetes features may be limited"
-    fi
-    
-    if [ ${#missing_deps[@]} -ne 0 ]; then
-        print_error "Missing required dependencies: ${missing_deps[*]}"
-        echo "Please install the missing dependencies and try again."
-        exit 1
+    # Check disk space (require at least 10GB free)
+    DISK_FREE_GB=$(df . | tail -1 | awk '{print int($4/1024/1024)}')
+    if [ $DISK_FREE_GB -lt 10 ]; then
+        print_warning "Only ${DISK_FREE_GB}GB disk space free. Recommend at least 10GB."
+    else
+        print_success "Disk space: ${DISK_FREE_GB}GB free (sufficient)"
     fi
     
     print_success "Prerequisites check completed!"
 }
 
-# Function to build Docker images
-build_images() {
-    print_step "Building Docker images..."
+# Phase 2: Minikube Setup
+setup_minikube() {
+    print_phase "Minikube Cluster Setup"
     
-    # If using Kubernetes, configure Docker to use Minikube's Docker daemon
-    if [ "$DEPLOYMENT_MODE" = "kubernetes" ] || [ "$DEPLOYMENT_MODE" = "both" ]; then
-        if [ "$SKIP_K8S" != true ]; then
-            eval $(minikube docker-env) 2>/dev/null || true
-        fi
+    print_step "Checking Minikube status..."
+    
+    # Check if Minikube is running
+    if minikube status >/dev/null 2>&1; then
+        print_success "Minikube is already running"
+    else
+        print_step "Starting Minikube cluster..."
+        
+        # Start Minikube with appropriate settings
+        minikube start \
+            --cpus=2 \
+            --memory=4096 \
+            --disk-size=20g \
+            --driver=docker \
+            --kubernetes-version=stable \
+            --addons=ingress,registry,metrics-server \
+            --insecure-registry="localhost:5000" || print_error "Failed to start Minikube"
+        
+        print_success "Minikube started successfully!"
     fi
     
-    local services=("user-service" "catalog-service" "order-service" "frontend-service")
+    # Wait for cluster to be ready
+    print_step "Waiting for cluster to be ready..."
+    kubectl wait --for=condition=Ready nodes --all --timeout=300s || print_error "Cluster failed to become ready"
     
-    for service in "${services[@]}"; do
-        print_status "Building $service image..."
+    # Configure kubectl context
+    print_step "Configuring kubectl context..."
+    kubectl config use-context minikube || print_error "Failed to set kubectl context"
+    
+    print_success "Minikube cluster is ready!"
+}
+
+# Phase 3: Namespace and RBAC Setup
+setup_namespace() {
+    print_phase "Namespace and RBAC Configuration"
+    
+    print_step "Creating namespace..."
+    
+    # Create namespace if it doesn't exist
+    if kubectl get namespace $NAMESPACE >/dev/null 2>&1; then
+        print_success "Namespace '$NAMESPACE' already exists"
+    else
+        kubectl create namespace $NAMESPACE || print_error "Failed to create namespace"
+        print_success "Namespace '$NAMESPACE' created"
+    fi
+    
+    # Apply RBAC configuration
+    print_step "Applying RBAC configuration..."
+    if [ -f "k8s-manifests/04-rbac.yaml" ]; then
+        kubectl apply -f k8s-manifests/04-rbac.yaml -n $NAMESPACE || print_error "Failed to apply RBAC"
+        print_success "RBAC configuration applied"
+    else
+        print_warning "RBAC file not found, skipping..."
+    fi
+    
+    # Clean up any released persistent volumes to avoid binding issues
+    print_step "Checking persistent volume status..."
+    RELEASED_PVS=$(kubectl get pv --no-headers | grep Released | grep bookstore-data-pv | wc -l)
+    if [ $RELEASED_PVS -gt 0 ]; then
+        print_warning "Found released persistent volume, cleaning up..."
+        kubectl delete pv bookstore-data-pv 2>/dev/null || true
+        print_success "Released persistent volume cleaned up"
+    fi
+    
+    print_success "Namespace and RBAC setup completed!"
+}
+
+# Phase 4: Build and Push Images
+build_and_push_images() {
+    print_phase "Building and Pushing Docker Images"
+    
+    # Setup local registry if needed
+    print_step "Setting up local registry..."
+    if ! kubectl get service registry -n kube-system >/dev/null 2>&1; then
+        print_warning "Registry addon not found, enabling..."
+        minikube addons enable registry || print_error "Failed to enable registry addon"
+    fi
+    
+    # Port forward registry if not already running
+    print_step "Setting up registry port forwarding..."
+    if ! pgrep -f "kubectl.*port-forward.*registry" >/dev/null; then
+        kubectl port-forward --namespace kube-system service/registry 5000:80 >/dev/null 2>&1 &
+        sleep 3
+    fi
+    print_success "Registry is accessible at localhost:5000"
+    
+    # Build images for each service
+    SERVICES=("user-service" "catalog-service" "order-service" "frontend-service")
+    
+    for service in "${SERVICES[@]}"; do
+        print_step "Building $service image..."
         
         if [ -d "$service" ]; then
             cd "$service"
-            docker build -t "$REGISTRY/$service:$VERSION" .
             
-            # Also tag for local use
+            # Build image
+            docker build -t "$REGISTRY/$service:$VERSION" . || print_error "Failed to build $service image"
+            
+            # Tag for local use
             docker tag "$REGISTRY/$service:$VERSION" "$service:$VERSION"
             
+            # Push to registry
+            docker push "$REGISTRY/$service:$VERSION" || print_error "Failed to push $service image"
+            
             cd ..
-            print_success "$service image built successfully"
+            print_success "$service image built and pushed"
         else
             print_warning "Directory $service not found, skipping..."
         fi
     done
     
-    print_success "All Docker images built successfully!"
+    print_success "All images built and pushed successfully!"
 }
 
-# Function to create docker-compose file
-create_docker_compose() {
-    print_step "Creating docker-compose.yml..."
+# Phase 5: Deploy Kubernetes Resources
+deploy_kubernetes_resources() {
+    print_phase "Deploying Kubernetes Resources"
     
-    cat > docker-compose.yml << EOF
-version: '3.8'
-
-services:
-  user-service:
-    image: ${REGISTRY}/user-service:${VERSION}
-    ports:
-      - "8001:8000"
-    environment:
-      - PORT=8000
-      - SECRET_KEY=your-super-secret-jwt-key-change-in-production-please
-      - DATABASE_URL=sqlite:///./users.db
-      - ACCESS_TOKEN_EXPIRE_MINUTES=60
-    healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health').raise_for_status()"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-    restart: unless-stopped
-    volumes:
-      - user_data:/app
-
-  catalog-service:
-    image: ${REGISTRY}/catalog-service:${VERSION}
-    ports:
-      - "8002:8000"
-    environment:
-      - PORT=8000
-      - DATABASE_URL=sqlite:///./catalog.db
-      - USER_SERVICE_URL=http://user-service:8000
-      - ADMIN_EMAILS=admin@senecabooks.com,librarian@senecabooks.com
-    depends_on:
-      user-service:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health').raise_for_status()"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-    restart: unless-stopped
-    volumes:
-      - catalog_data:/app
-
-  order-service:
-    image: ${REGISTRY}/order-service:${VERSION}
-    ports:
-      - "8003:8000"
-    environment:
-      - PORT=8000
-      - DATABASE_URL=sqlite:///./orders.db
-      - USER_SERVICE_URL=http://user-service:8000
-      - CATALOG_SERVICE_URL=http://catalog-service:8000
-    depends_on:
-      user-service:
-        condition: service_healthy
-      catalog-service:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health').raise_for_status()"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-    restart: unless-stopped
-    volumes:
-      - order_data:/app
-
-  frontend-service:
-    image: ${REGISTRY}/frontend-service:${VERSION}
-    ports:
-      - "3000:80"
-    environment:
-      - REACT_APP_USER_SERVICE_URL=http://localhost:8001
-      - REACT_APP_CATALOG_SERVICE_URL=http://localhost:8002
-      - REACT_APP_ORDER_SERVICE_URL=http://localhost:8003
-    depends_on:
-      - user-service
-      - catalog-service
-      - order-service
-    restart: unless-stopped
-
-volumes:
-  user_data:
-  catalog_data:
-  order_data:
-
-networks:
-  default:
-    name: ${PROJECT_NAME}-network
-EOF
+    # Deploy infrastructure resources first
+    print_step "Deploying infrastructure resources..."
     
-    print_success "docker-compose.yml created successfully"
-}
-
-# Function to wait for service to be ready
-wait_for_service() {
-    local service_name=$1
-    local port=$2
-    local timeout=$3
-    local max_attempts=$((timeout / 2))
-    local attempt=1
+    INFRA_FILES=("01-config.yaml" "02-storage.yaml" "03-ingress.yaml" "05-network-policy.yaml")
     
-    print_status "Waiting for $service_name to be ready (timeout: ${timeout}s)..."
-    
-    while [ $attempt -le $max_attempts ]; do
-        if curl -f -s "http://localhost:${port}/health" > /dev/null 2>&1; then
-            print_success "$service_name is ready"
-            return 0
+    for file in "${INFRA_FILES[@]}"; do
+        if [ -f "k8s-manifests/$file" ]; then
+            print_step "Applying $file..."
+            kubectl apply -f "k8s-manifests/$file" -n $NAMESPACE || print_warning "Resource $file had warnings but was applied"
+        else
+            print_warning "File k8s-manifests/$file not found, skipping..."
         fi
-        
-        if [ $attempt -eq $max_attempts ]; then
-            print_warning "$service_name health check failed after ${timeout}s"
-            print_status "Checking container logs for $service_name..."
-            docker-compose logs --tail=20 $service_name
-            return 1
-        fi
-        
-        echo -n "."
-        sleep 2
-        ((attempt++))
     done
+    
+    # Deploy services
+    print_step "Deploying application services..."
+    
+    SERVICE_FILES=("user-service.yaml" "catalog-service.yaml" "order-service.yaml" "frontend-service.yaml")
+    
+    for file in "${SERVICE_FILES[@]}"; do
+        if [ -f "k8s-manifests/$file" ]; then
+            print_step "Deploying $file..."
+            kubectl apply -f "k8s-manifests/$file" -n $NAMESPACE || print_error "Failed to deploy $file"
+        else
+            print_warning "File k8s-manifests/$file not found, skipping..."
+        fi
+    done
+    
+    print_success "Kubernetes resources deployed!"
 }
 
-# Function to deploy with Docker Compose
-deploy_docker_compose() {
-    print_step "Deploying with Docker Compose..."
+# Phase 6: Wait for Deployment and Setup Ingress
+finalize_deployment() {
+    print_phase "Finalizing Deployment and Setup"
     
-    # Stop existing containers and clean up
-    print_status "Cleaning up existing containers..."
-    docker-compose down --volumes --remove-orphans 2>/dev/null || true
+    print_step "Waiting for all pods to be ready..."
     
-    # Start services in proper order with retries
-    print_status "Starting services..."
+    # Check if any pods are in CrashLoopBackOff and need database path fix
+    CRASH_PODS=$(kubectl get pods -n $NAMESPACE --no-headers | grep CrashLoopBackOff | wc -l)
+    if [ $CRASH_PODS -gt 0 ]; then
+        print_warning "Detected pods in CrashLoopBackOff, checking database configurations..."
+        
+        # Apply fixed database configurations
+        print_step "Applying database path fixes..."
+        kubectl apply -f k8s-manifests/user-service.yaml -n $NAMESPACE
+        kubectl apply -f k8s-manifests/catalog-service.yaml -n $NAMESPACE  
+        kubectl apply -f k8s-manifests/order-service.yaml -n $NAMESPACE
+        
+        print_success "Database configurations updated"
+        sleep 10
+    fi
     
-    # Start user service first
-    print_status "Starting user-service..."
-    docker-compose up -d user-service
+    # Wait for pods with retries
+    for i in {1..3}; do
+        print_step "Attempt $i: Waiting for all pods to be ready..."
+        if kubectl wait --for=condition=Ready pods --all -n $NAMESPACE --timeout=180s; then
+            print_success "All pods are ready!"
+            break
+        elif [ $i -eq 3 ]; then
+            print_error "Pods failed to become ready after 3 attempts"
+        else
+            print_warning "Attempt $i failed, retrying..."
+            sleep 10
+        fi
+    done
     
-    # Wait for user service to be healthy
-    wait_for_service "user-service" 8001 60
+    print_step "Setting up ingress..."
     
-    # Start catalog service
-    print_status "Starting catalog-service..."
-    docker-compose up -d catalog-service
+    # Add hosts entry for local access
+    MINIKUBE_IP=$(minikube ip)
     
-    # Wait for catalog service to be healthy
-    wait_for_service "catalog-service" 8002 60
+    if ! grep -q "$DOMAIN" /etc/hosts 2>/dev/null; then
+        print_step "Adding hosts entry (requires sudo)..."
+        echo "$MINIKUBE_IP $DOMAIN" | sudo tee -a /etc/hosts >/dev/null || print_warning "Failed to add hosts entry"
+        print_success "Hosts entry added"
+    else
+        print_success "Hosts entry already exists"
+    fi
     
-    # Start order service
-    print_status "Starting order-service..."
-    docker-compose up -d order-service
-    
-    # Wait for order service to be healthy
-    wait_for_service "order-service" 8003 60
-    
-    # Start frontend service
-    print_status "Starting frontend-service..."
-    docker-compose up -d frontend-service
-    
-    # Wait a bit for frontend to start
+    # Wait for ingress to be ready
+    print_step "Waiting for ingress to be ready..."
     sleep 10
     
-    print_success "Docker Compose deployment completed!"
+    # Verify deployment health
+    print_step "Verifying deployment health..."
+    MINIKUBE_IP=$(minikube ip)
     
-    # Show service status
-    print_status "Service Status:"
-    docker-compose ps
+    echo "Checking application health endpoints..."
     
-    # Wait for services to be ready
-    print_status "Waiting for services to be ready..."
-    sleep 15
-    
-    # Check service health
-    print_status "Checking service health..."
-    
-    check_service_health() {
-        local service=$1
-        local port=$2
-        local max_attempts=30
-        local attempt=1
-        
-        while [ $attempt -le $max_attempts ]; do
-            if curl -f -s "http://localhost:${port}/health" > /dev/null 2>&1; then
-                print_success "${service} is healthy"
-                return 0
-            fi
-            
-            if [ $attempt -eq $max_attempts ]; then
-                print_warning "${service} health check failed after ${max_attempts} attempts"
-                return 1
-            fi
-            
-            sleep 2
-            ((attempt++))
-        done
-    }
-    
-    check_service_health "user-service" "8001"
-    check_service_health "catalog-service" "8002"
-    check_service_health "order-service" "8003"
-    
-    # Check frontend
-    if curl -f -s "http://localhost:3000" > /dev/null 2>&1; then
-        print_success "frontend-service is accessible"
+    # Test frontend
+    if curl -s -o /dev/null -w "%{http_code}" "http://$MINIKUBE_IP/" --connect-timeout 5 | grep -q "200\|404"; then
+        print_success "Frontend is responding"
     else
-        print_warning "frontend-service may not be ready yet"
-    fi
-}
-
-# Function to seed data for Docker Compose
-seed_docker_data() {
-    print_step "Seeding comprehensive test data for Docker Compose..."
-    
-    # Check if test data exists
-    if [ ! -f "test_data/complete_dataset.json" ]; then
-        print_status "Generating test data..."
-        python3 scripts/generate_test_data.py || {
-            print_error "Failed to generate test data"
-            return 1
-        }
+        print_warning "Frontend not responding properly"
     fi
     
-    # Wait for services to be ready
-    print_status "Waiting for services to be ready..."
-    sleep 10
-    
-    # Load comprehensive test data
-    print_status "Loading comprehensive test data..."
-    python3 scripts/load_test_data.py --env development || {
-        print_warning "Failed to load comprehensive test data, falling back to basic seeding..."
-        
-        # Fallback to basic user creation
-        print_status "Creating admin user..."
-        docker-compose exec -T user-service python -c "
-import requests
-import sys
-try:
-    response = requests.post('http://localhost:8000/register', json={
-        'email': 'admin@senecabooks.com',
-        'password': 'admin123',
-        'is_admin': True
-    })
-    if response.status_code in [200, 201]:
-        print('Admin user created successfully')
-    else:
-        print('Admin user may already exist')
-except Exception as e:
-    print(f'Error creating admin user: {e}')
-" || print_warning "Failed to create admin user (may already exist)"
-        
-        print_status "Creating regular user..."
-        docker-compose exec -T user-service python -c "
-import requests
-import sys
-try:
-    response = requests.post('http://localhost:8000/register', json={
-        'email': 'john.doe@example.com',
-        'password': 'password123',
-        'is_admin': False
-    })
-    if response.status_code in [200, 201]:
-        print('Regular user created successfully')
-    else:
-        print('Regular user may already exist')
-except Exception as e:
-    print(f'Error creating regular user: {e}')
-" || print_warning "Failed to create regular user (may already exist)"
-    }
-    
-    print_success "Docker Compose data seeding completed!"
-    print_status "Access the application at: http://localhost:3000"
-    print_status "Admin credentials: admin@senecabooks.com / admin123"
-    print_status "User credentials: john.doe@example.com / password123"
-}
-
-# ==============================
-# KUBERNETES DEPLOYMENT FUNCTIONS
-# ==============================
-
-# Function to check Minikube status
-check_minikube() {
-    print_step "Checking Minikube status..."
-    
-    if ! minikube status >/dev/null 2>&1; then
-        print_warning "Minikube is not running"
-        print_status "Starting Minikube..."
-        
-        # Start Minikube with appropriate settings
-        minikube start \
-            --driver=docker \
-            --memory=8192 \
-            --cpus=4 \
-            --disk-size=20g \
-            --kubernetes-version=v1.28.0 \
-            --addons=ingress,registry,dashboard,metrics-server
-        
-        print_success "Minikube started successfully!"
-    else
-        print_success "Minikube is already running"
-    fi
-    
-    # Configure kubectl context
-    kubectl config use-context minikube
-    print_success "kubectl context set to minikube"
-}
-
-# Function to enable required addons
-enable_addons() {
-    print_step "Enabling required Minikube addons..."
-    
-    local addons=("ingress" "registry" "dashboard" "metrics-server")
-    
-    for addon in "${addons[@]}"; do
-        if minikube addons list | grep -q "$addon.*enabled"; then
-            print_status "$addon addon is already enabled"
+    # Test API endpoints
+    for service in user catalog order; do
+        if curl -s -o /dev/null -w "%{http_code}" "http://$MINIKUBE_IP/api/$service/health" --connect-timeout 5 | grep -q "200\|404"; then
+            print_success "$service-service is responding"
         else
-            print_status "Enabling $addon addon..."
-            minikube addons enable "$addon"
+            print_warning "$service-service not responding properly"
         fi
     done
     
-    print_success "All required addons enabled!"
-}
-
-# Function to setup persistent storage
-setup_persistent_storage() {
-    print_step "Setting up persistent storage..."
-    
-    # Create the data directory on minikube node
-    local data_path="/data/seneca-bookstore"
-    
-    print_status "Creating persistent data directory..."
-    minikube ssh -- sudo mkdir -p "$data_path"
-    minikube ssh -- sudo chmod 777 "$data_path"
-    
-    # Check if there's existing data and preserve it
-    if minikube ssh -- "[ -f $data_path/users.db ] || [ -f $data_path/catalog.db ] || [ -f $data_path/orders.db ]"; then
-        print_status "Found existing database files - preserving data"
-        EXISTING_DATA=true
-    else
-        print_status "No existing data found - will seed fresh data"
-        EXISTING_DATA=false
-    fi
-    
-    print_success "Persistent storage configured!"
-}
-
-# Function to backup existing data
-backup_data() {
-    if [ "$EXISTING_DATA" = true ]; then
-        print_step "Creating data backup..."
-        
-        local backup_dir="/data/seneca-bookstore/backup_$(date +%Y%m%d_%H%M%S)"
-        minikube ssh -- sudo mkdir -p "$backup_dir"
-        
-        # Backup database files
-        minikube ssh -- sudo cp -f /data/seneca-bookstore/*.db "$backup_dir/" 2>/dev/null || true
-        
-        print_success "Data backed up to: $backup_dir"
-    fi
-}
-
-# Function to check if data seeding is needed
-check_data_seeding_needed() {
-    print_step "Checking if data seeding is needed..."
-    
-    # Wait for services to be ready first
-    sleep 15
-    
-    # Check if we have users in the database
-    local user_count=$(kubectl exec -n $NAMESPACE deployment/user-service -- python -c "
-import requests
-try:
-    response = requests.get('http://localhost:8000/')
-    if response.status_code == 200:
-        # Try to create a test admin to see if data exists
-        test_response = requests.post('http://localhost:8000/register', json={
-            'email': 'test_check@example.com',
-            'password': 'test123',
-            'is_admin': False
-        })
-        if test_response.status_code == 400 and 'already registered' in test_response.text:
-            print('DATA_EXISTS')
-        else:
-            print('NO_DATA')
-    else:
-        print('SERVICE_NOT_READY')
-except Exception as e:
-    print('ERROR')
-" 2>/dev/null || echo "ERROR")
-    
-    if [ "$user_count" = "DATA_EXISTS" ]; then
-        print_status "Existing user data found - skipping data seeding"
-        SKIP_DATA_SEEDING=true
-    else
-        print_status "No existing data found - will seed comprehensive test data"
-        SKIP_DATA_SEEDING=false
-    fi
-}
-
-# Function to install cert-manager
-install_cert_manager() {
-    print_step "Installing cert-manager..."
-    
-    if kubectl get namespace cert-manager >/dev/null 2>&1; then
-        print_status "cert-manager is already installed"
-    else
-        print_status "Installing cert-manager..."
-        kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.0/cert-manager.yaml
-        
-        print_status "Waiting for cert-manager to be ready..."
-        kubectl wait --for=condition=Available deployment/cert-manager -n cert-manager --timeout=300s
-        kubectl wait --for=condition=Available deployment/cert-manager-cainjector -n cert-manager --timeout=300s
-        kubectl wait --for=condition=Available deployment/cert-manager-webhook -n cert-manager --timeout=300s
-        
-        print_success "cert-manager installed successfully!"
-    fi
-}
-
-# Function to setup local registry access
-setup_registry() {
-    print_step "Setting up local registry access..."
-    
-    # Enable registry addon if not already enabled
-    if ! minikube addons list | grep -q "registry.*enabled"; then
-        minikube addons enable registry
-    fi
-    
-    # Port forward registry if not already running
-    if ! lsof -i :5000 >/dev/null 2>&1; then
-        print_status "Setting up registry port forwarding..."
-        kubectl port-forward --namespace kube-system service/registry 5000:80 &
-        sleep 5
-    fi
-    
-    print_success "Registry access configured!"
-}
-
-# Function to push images to registry
-push_images() {
-    print_step "Pushing images to registry..."
-    
-    local services=("user-service" "catalog-service" "order-service" "frontend-service")
-    
-    for service in "${services[@]}"; do
-        print_status "Pushing $service image..."
-        docker push "$REGISTRY/$service:$VERSION" || print_warning "Failed to push $service image"
-    done
-    
-    print_success "Images pushed to registry!"
-}
-
-# Function to create namespace and apply configurations
-apply_configs() {
-    print_step "Applying Kubernetes configurations..."
-    
-    # Apply configurations in order
-    local manifests=(
-        "00-namespace.yaml"
-        "01-config.yaml"
-        "02-storage.yaml"
-        "04-rbac.yaml"
-        "05-network-policy.yaml"
-        "08-monitoring-rbac.yaml"
-        "06-prometheus.yaml"
-        "07-grafana.yaml"
-        "user-service.yaml"
-        "catalog-service.yaml"
-        "order-service.yaml"
-        "frontend-service.yaml"
-        "03-ingress.yaml"
-    )
-    
-    for manifest in "${manifests[@]}"; do
-        if [ -f "k8s-manifests/$manifest" ]; then
-            print_status "Applying $manifest..."
-            kubectl apply -f "k8s-manifests/$manifest"
-        else
-            print_warning "Manifest $manifest not found, skipping..."
-        fi
-    done
-    
-    print_success "Kubernetes configurations applied!"
-}
-
-# Function to wait for deployments
-wait_for_deployments() {
-    print_step "Waiting for deployments to be ready..."
-    
-    local deployments=("user-service" "catalog-service" "order-service" "frontend-service")
-    
-    for deployment in "${deployments[@]}"; do
-        print_status "Waiting for $deployment deployment..."
-        kubectl wait --for=condition=Available deployment/$deployment -n $NAMESPACE --timeout=300s
-    done
-    
-    print_success "All deployments are ready!"
-}
-
-# Function to setup hosts file
-setup_hosts() {
-    print_step "Setting up hosts file..."
-    
-    local minikube_ip=$(minikube ip)
-    local hosts_entry="$minikube_ip $DOMAIN"
-    
-    if grep -q "$DOMAIN" /etc/hosts 2>/dev/null; then
-        print_status "Updating existing hosts entry..."
-        sudo sed -i "s/.*$DOMAIN.*/$hosts_entry/" /etc/hosts
-    else
-        print_status "Adding new hosts entry..."
-        echo "$hosts_entry" | sudo tee -a /etc/hosts
-    fi
-    
-    print_success "Hosts file updated: $hosts_entry"
-}
-
-# Function to run Kubernetes tests
-run_k8s_tests() {
-    print_step "Running Kubernetes health checks..."
-    
-    # Wait a bit for services to stabilize
-    sleep 10
-    
-    local services=("user-service" "catalog-service" "order-service")
-    
-    for service in "${services[@]}"; do
-        print_status "Testing $service health endpoint..."
-        
-        if kubectl exec -n $NAMESPACE deployment/$service -- curl -f http://localhost:8000/health >/dev/null 2>&1; then
-            print_success "$service health check passed"
-        else
-            print_warning "$service health check failed"
-        fi
-    done
-    
-    print_success "Kubernetes health checks completed!"
-}
-
-# Function to seed initial data for Kubernetes
-seed_k8s_data() {
-    print_step "Managing test data for Kubernetes..."
-    
-    # Check if force reload is requested
-    if [ "$FORCE_DATA_RELOAD" = true ]; then
-        print_status "Force data reload requested - will reload all test data"
-        SKIP_DATA_SEEDING=false
-    else
-        # Check if data seeding is needed
-        check_data_seeding_needed
-    fi
-    
-    if [ "$SKIP_DATA_SEEDING" = true ]; then
-        print_status "Existing data found - skipping data seeding"
-        print_status "To force reload data, use: ./deploy.sh --kubernetes --force-data-reload"
-        print_success "Using existing persistent data"
-        return 0
-    fi
-    
-    # Check if test data exists
-    if [ ! -f "test_data/complete_dataset.json" ]; then
-        print_status "Generating comprehensive test data..."
-        python3 scripts/generate_test_data.py || {
-            print_error "Failed to generate test data"
-            return 1
-        }
-    fi
-    
-    # Wait for services to be ready
-    print_status "Waiting for services to be ready..."
-    sleep 20
-    
-    # Load comprehensive test data
-    print_status "Loading comprehensive test data..."
-    if python3 scripts/load_test_data.py --env kubernetes; then
-        print_success "Comprehensive test data loaded successfully!"
-        
-        # Save loading timestamp for future reference
-        echo "{\"last_loaded\": \"$(date -Iseconds)\", \"environment\": \"kubernetes\"}" > test_data/last_load.json
-        
-    else
-        print_warning "Failed to load comprehensive test data, falling back to basic seeding..."
-        
-        # Fallback to basic user creation
-        print_status "Creating admin user..."
-        kubectl exec -n $NAMESPACE deployment/user-service -- python -c "
-import requests
-import sys
-try:
-    response = requests.post('http://localhost:8000/register', json={
-        'email': 'admin@senecabooks.com',
-        'password': 'admin123',
-        'is_admin': True
-    })
-    if response.status_code in [200, 201]:
-        print('Admin user created successfully')
-    else:
-        print('Admin user may already exist')
-except Exception as e:
-    print(f'Error creating admin user: {e}')
-" || print_warning "Failed to create admin user (may already exist)"
-        
-        print_status "Creating regular user..."
-        kubectl exec -n $NAMESPACE deployment/user-service -- python -c "
-import requests
-import sys
-try:
-    response = requests.post('http://localhost:8000/register', json={
-        'email': 'john.doe@example.com',
-        'password': 'password123',
-        'is_admin': False
-    })
-    if response.status_code in [200, 201]:
-        print('Regular user created successfully')
-    else:
-        print('Regular user may already exist')
-except Exception as e:
-    print(f'Error creating regular user: {e}')
-" || print_warning "Failed to create regular user (may already exist)"
-    fi
-    
-    print_success "Kubernetes data seeding completed!"
-    print_status "Access the application at: https://senecabooks.local"
-    print_status "Admin credentials: admin@senecabooks.com / admin123"
-    print_status "User credentials: john.doe@example.com / password123"
-    
-    # Display data summary
-    print_status "Data Summary:"
-    kubectl exec -n $NAMESPACE deployment/user-service -- python -c "
-import requests
-try:
-    response = requests.get('http://localhost:8000/')
-    print('✅ User service: Available')
-except:
-    print('❌ User service: Not responding')
-"
-    
-    kubectl exec -n $NAMESPACE deployment/catalog-service -- python -c "
-import requests
-try:
-    response = requests.get('http://localhost:8000/books')
-    if response.status_code == 200:
-        books = response.json()
-        if isinstance(books, list):
-            print(f'✅ Catalog service: {len(books)} books available')
-        else:
-            print('✅ Catalog service: Available')
-    else:
-        print('⚠️  Catalog service: Available but no data')
-except:
-    print('❌ Catalog service: Not responding')
-"
-}
-}
-
-# Function to deploy to Kubernetes
-deploy_kubernetes() {
-    if [ "$SKIP_K8S" = true ]; then
-        print_warning "Skipping Kubernetes deployment"
-        return
-    fi
-    
-    print_step "Deploying to Kubernetes..."
-    
-    check_minikube
-    enable_addons
-    install_cert_manager
-    setup_persistent_storage
-    backup_data
-    setup_registry
-    push_images
-    apply_configs
-    wait_for_deployments
-    setup_hosts
-    run_k8s_tests
-    seed_k8s_data
+    print_success "Deployment finalized!"
 }
 
 # Function to show deployment summary
 show_summary() {
-    print_header
-    print_success "🎉 Seneca Book Store deployed successfully!"
     echo
-    
-    if [ "$DEPLOYMENT_MODE" = "docker" ] || [ "$DEPLOYMENT_MODE" = "both" ]; then
-        print_status "🐳 Docker Compose Services:"
-        echo "  👤 User Service: http://localhost:8001"
-        echo "  📚 Catalog Service: http://localhost:8002"
-        echo "  🛒 Order Service: http://localhost:8003"
-        echo "  🌐 Frontend: http://localhost:3000"
-        echo
-        
-        print_status "🛠️ Docker Commands:"
-        echo "  📝 View logs: docker-compose logs -f [service-name]"
-        echo "  🔄 Restart: docker-compose restart [service-name]"
-        echo "  🛑 Stop: docker-compose down"
-        echo
-    fi
-    
-    if [ "$DEPLOYMENT_MODE" = "kubernetes" ] || ([ "$DEPLOYMENT_MODE" = "both" ] && [ "$SKIP_K8S" != true ]); then
-        print_status "☸️ Kubernetes Services:"
-        echo "  🌐 Application: https://$DOMAIN"
-        echo "  🔧 Dashboard: minikube dashboard"
-        echo "  📊 Namespace: $NAMESPACE"
-        echo
-        
-        print_status "🛠️ Kubernetes Commands:"
-        echo "  📝 View logs: kubectl logs -f deployment/<service> -n $NAMESPACE"
-        echo "  🔍 Check pods: kubectl get pods -n $NAMESPACE"
-        echo "  🌐 Port forward: kubectl port-forward service/<service> <port>:8000 -n $NAMESPACE"
-        echo "  🚀 Scale: kubectl scale deployment <service> --replicas=<count> -n $NAMESPACE"
-        echo
-        
-        print_status "🎯 Quick Access:"
-        echo "  📱 Frontend: https://$DOMAIN"
-        echo "  🔐 User API: https://$DOMAIN/api/user/docs"
-        echo "  📚 Catalog API: https://$DOMAIN/api/catalog/docs"
-        echo "  🛒 Order API: https://$DOMAIN/api/order/docs"
-        echo
-    fi
-    
-    print_status "🔐 Default Credentials:"
-    echo "  👑 Admin: admin@seneca.ca / admin123"
-    echo "  👤 User: user@seneca.ca / user123"
+    print_header
+    echo -e "${GREEN}🎉 Deployment completed successfully!${NC}"
+    echo
+    echo -e "${CYAN}📊 Deployment Summary:${NC}"
+    echo -e "  • Project: $PROJECT_NAME"
+    echo -e "  • Namespace: $NAMESPACE"
+    echo -e "  • Domain: http://$DOMAIN"
+    echo -e "  • Registry: $REGISTRY"
+    echo
+    echo -e "${CYAN}🔗 Access URLs:${NC}"
+    echo -e "  • Application: ${GREEN}http://$DOMAIN${NC}"
+    echo -e "  • API Docs: ${GREEN}http://$DOMAIN/api/docs${NC}"
+    echo
+    echo -e "${CYAN}� Service Status:${NC}"
+    kubectl get pods -n $NAMESPACE
+    echo
+    echo -e "${CYAN}🌐 Services:${NC}"
+    kubectl get services -n $NAMESPACE
+    echo
+    echo -e "${CYAN}�📋 Useful Commands:${NC}"
+    echo -e "  • Check status: ${YELLOW}./deploy.sh status${NC}"
+    echo -e "  • View logs: ${YELLOW}kubectl logs -f deployment/user-service -n $NAMESPACE${NC}"
+    echo -e "  • Port forward: ${YELLOW}kubectl port-forward service/frontend-service 3000:80 -n $NAMESPACE${NC}"
+    echo
+    echo -e "${CYAN}🛠️ Troubleshooting:${NC}"
+    echo -e "  • If domain doesn't work, check: ${YELLOW}minikube ip${NC}"
+    echo -e "  • View ingress: ${YELLOW}kubectl get ingress -n $NAMESPACE${NC}"
+    echo -e "  • Cleanup: ${YELLOW}./deploy.sh cleanup${NC}"
+    echo
+    echo -e "${GREEN}✅ Ready to use! Visit http://$DOMAIN${NC}"
     echo
 }
 
 # Function to show status
 show_status() {
     print_header
-    print_status "📊 Deployment Status"
+    echo -e "${BLUE}📊 Deployment Status${NC}"
     echo
     
-    if [ "$DEPLOYMENT_MODE" = "docker" ] || [ "$DEPLOYMENT_MODE" = "both" ]; then
-        print_status "🐳 Docker Compose Status:"
-        docker-compose ps 2>/dev/null || echo "Docker Compose not running"
-        echo
-    fi
+    # Minikube status
+    echo -e "${CYAN}☸️ Minikube Status:${NC}"
+    minikube status || echo "Minikube not running"
+    echo
     
-    if [ "$DEPLOYMENT_MODE" = "kubernetes" ] || ([ "$DEPLOYMENT_MODE" = "both" ] && [ "$SKIP_K8S" != true ]); then
-        print_status "☸️ Minikube Status:"
-        minikube status 2>/dev/null || echo "Minikube not running"
-        echo
-        
-        print_status "📦 Kubernetes Pods:"
-        kubectl get pods -n $NAMESPACE 2>/dev/null || echo "Namespace not found"
-        echo
-        
-        print_status "🔗 Kubernetes Services:"
-        kubectl get services -n $NAMESPACE 2>/dev/null || echo "Namespace not found"
-        echo
-    fi
-}
-
-# Function to show logs
-show_logs() {
-    local service=$1
-    
-    if [ -z "$service" ]; then
-        echo "Available services: user-service, catalog-service, order-service, frontend-service"
-        read -p "Enter service name: " service
-    fi
-    
-    if [ "$DEPLOYMENT_MODE" = "docker" ]; then
-        docker-compose logs -f $service
-    elif [ "$DEPLOYMENT_MODE" = "kubernetes" ]; then
-        kubectl logs -f deployment/$service -n $NAMESPACE
+    # Namespace status
+    echo -e "${CYAN}📦 Namespace Status:${NC}"
+    if kubectl get namespace $NAMESPACE >/dev/null 2>&1; then
+        kubectl get pods -n $NAMESPACE -o wide
     else
-        echo "Please specify --docker or --k8s mode"
+        echo "Namespace $NAMESPACE does not exist"
     fi
+    echo
+    
+    # Services status
+    echo -e "${CYAN}🔗 Services Status:${NC}"
+    kubectl get services -n $NAMESPACE 2>/dev/null || echo "No services found"
+    echo
+    
+    # Ingress status
+    echo -e "${CYAN}🌐 Ingress Status:${NC}"
+    kubectl get ingress -n $NAMESPACE 2>/dev/null || echo "No ingress found"
 }
 
-# Function to cleanup
+# Function to cleanup deployment
 cleanup() {
-    print_step "Cleaning up deployments..."
+    print_header
+    echo -e "${YELLOW}🧹 Cleaning up deployment...${NC}"
     
-    if [ "$DEPLOYMENT_MODE" = "docker" ] || [ "$DEPLOYMENT_MODE" = "both" ]; then
-        print_status "Stopping Docker Compose..."
-        docker-compose down -v 2>/dev/null || true
+    # Delete namespace (this removes all resources in the namespace)
+    if kubectl get namespace $NAMESPACE >/dev/null 2>&1; then
+        kubectl delete namespace $NAMESPACE --timeout=60s || print_warning "Failed to delete namespace"
+        print_success "Namespace deleted"
+    else
+        print_warning "Namespace does not exist"
     fi
     
-    if [ "$DEPLOYMENT_MODE" = "kubernetes" ] || ([ "$DEPLOYMENT_MODE" = "both" ] && [ "$SKIP_K8S" != true ]); then
-        print_status "Cleaning up Kubernetes..."
-        kubectl delete namespace $NAMESPACE --ignore-not-found=true
-        
-        # Clean up hosts entry
-        if grep -q "$DOMAIN" /etc/hosts 2>/dev/null; then
-            sudo sed -i "/$DOMAIN/d" /etc/hosts
-        fi
+    # Remove hosts entry
+    if grep -q "$DOMAIN" /etc/hosts 2>/dev/null; then
+        print_step "Removing hosts entry (requires sudo)..."
+        sudo sed -i "/$DOMAIN/d" /etc/hosts || print_warning "Failed to remove hosts entry"
+        print_success "Hosts entry removed"
+    fi
+    
+    # Stop Minikube if requested
+    read -p "Do you want to stop Minikube? (y/N): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        minikube stop
+        print_success "Minikube stopped"
     fi
     
     print_success "Cleanup completed!"
@@ -936,140 +446,60 @@ cleanup() {
 
 # Function to show help
 show_help() {
-    echo "Seneca Book Store - Unified Deployment Script"
+    print_header
+    echo -e "${CYAN}Seneca Book Store - Streamlined Minikube Deployment${NC}"
     echo
-    echo "Usage: $0 [OPTIONS] [COMMAND]"
+    echo -e "${YELLOW}Usage:${NC}"
+    echo -e "  ./deploy.sh [COMMAND]"
     echo
-    echo "Deployment Modes:"
-    echo "  --docker       Deploy using Docker Compose only"
-    echo "  --k8s          Deploy using Kubernetes only"
-    echo "  --both         Deploy using both Docker Compose and Kubernetes (default)"
+    echo -e "${YELLOW}Commands:${NC}"
+    echo -e "  ${GREEN}deploy${NC}     Full deployment to Minikube (default)"
+    echo -e "  ${GREEN}status${NC}     Show deployment status"
+    echo -e "  ${GREEN}cleanup${NC}    Clean up all deployments"
+    echo -e "  ${GREEN}help${NC}       Show this help message"
     echo
-    echo "Commands:"
-    echo "  deploy         Full deployment (default)"
-    echo "  build          Build Docker images only"
-    echo "  status         Show deployment status"
-    echo "  logs [service] Show logs for service"
-    echo "  cleanup        Clean up all deployments"
-    echo "  seed           Seed initial data"
-    echo "  help           Show this help message"
+    echo -e "${YELLOW}Examples:${NC}"
+    echo -e "  ./deploy.sh              # Full deployment"
+    echo -e "  ./deploy.sh status       # Check status"
+    echo -e "  ./deploy.sh cleanup      # Clean up"
     echo
-    echo "Examples:"
-    echo "  $0 --docker deploy     # Deploy with Docker Compose only"
-    echo "  $0 --k8s deploy        # Deploy with Kubernetes only"
-    echo "  $0 --both deploy       # Deploy with both (default)"
-    echo "  $0 status              # Show deployment status"
-    echo "  $0 logs user-service   # Show logs for user service"
-    echo "  $0 cleanup             # Clean up all deployments"
+    echo -e "${YELLOW}Prerequisites:${NC}"
+    echo -e "  • Docker (running)"
+    echo -e "  • kubectl"
+    echo -e "  • Minikube"
+    echo -e "  • 4GB+ RAM"
+    echo -e "  • 10GB+ disk space"
+    echo
 }
 
-# Main deployment functions
-deploy_docker_only() {
+# Main deployment function
+main_deploy() {
     print_header
+    echo -e "${GREEN}🚀 Starting Seneca Book Store deployment to Minikube...${NC}"
+    echo
+    
+    # Execute all phases
     check_prerequisites
-    build_images
-    create_docker_compose
-    deploy_docker_compose
-    seed_docker_data
+    setup_minikube
+    setup_namespace
+    build_and_push_images
+    deploy_kubernetes_resources
+    finalize_deployment
+    
+    # Show summary
     show_summary
 }
-
-deploy_k8s_only() {
-    print_header
-    check_prerequisites
-    build_images
-    deploy_kubernetes
-    show_summary
-}
-
-deploy_both() {
-    print_header
-    check_prerequisites
-    build_images
-    
-    print_status "Deploying with Docker Compose first..."
-    create_docker_compose
-    deploy_docker_compose
-    seed_docker_data
-    
-    print_status "Now deploying with Kubernetes..."
-    deploy_kubernetes
-    
-    show_summary
-}
-
-# Parse arguments
-DEPLOYMENT_MODE="both"
-SKIP_K8S=false
-FORCE_DATA_RELOAD=false
-
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --docker)
-            DEPLOYMENT_MODE="docker"
-            shift
-            ;;
-        --k8s|--kubernetes)
-            DEPLOYMENT_MODE="kubernetes"
-            shift
-            ;;
-        --both)
-            DEPLOYMENT_MODE="both"
-            shift
-            ;;
-        --force-data-reload)
-            FORCE_DATA_RELOAD=true
-            shift
-            ;;
-        *)
-            break
-            ;;
-    esac
-done
 
 # Main script logic
 case "${1:-deploy}" in
     deploy)
-        case $DEPLOYMENT_MODE in
-            docker)
-                deploy_docker_only
-                ;;
-            kubernetes)
-                deploy_k8s_only
-                ;;
-            both)
-                deploy_both
-                ;;
-        esac
-        ;;
-    build)
-        check_prerequisites
-        if [ "$DEPLOYMENT_MODE" = "kubernetes" ]; then
-            check_minikube
-            setup_registry
-        fi
-        build_images
-        if [ "$DEPLOYMENT_MODE" = "kubernetes" ]; then
-            push_images
-        fi
+        main_deploy
         ;;
     status)
         show_status
         ;;
-    logs)
-        show_logs $2
-        ;;
     cleanup)
         cleanup
-        ;;
-    seed)
-        if [ "$DEPLOYMENT_MODE" = "docker" ]; then
-            seed_docker_data
-        elif [ "$DEPLOYMENT_MODE" = "kubernetes" ]; then
-            seed_k8s_data
-        else
-            echo "Please specify --docker or --k8s mode for seeding"
-        fi
         ;;
     help|--help|-h)
         show_help
@@ -1077,6 +507,5 @@ case "${1:-deploy}" in
     *)
         print_error "Unknown command: $1"
         show_help
-        exit 1
         ;;
 esac

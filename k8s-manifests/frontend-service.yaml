@@ -27,11 +27,11 @@ spec:
           name: http
         env:
         - name: REACT_APP_USER_SERVICE_URL
-          value: "https://senecabooks.local/api/user"
+          value: "http://senecabooks.local/api/user"
         - name: REACT_APP_CATALOG_SERVICE_URL
-          value: "https://senecabooks.local/api/catalog"
+          value: "http://senecabooks.local/api/catalog"
         - name: REACT_APP_ORDER_SERVICE_URL
-          value: "https://senecabooks.local/api/order"
+          value: "http://senecabooks.local/api/order"
         resources:
           limits:
             cpu: 200m
