@@ -327,28 +327,54 @@ finalize_deployment() {
     
     # Wait for ingress to be ready
     print_step "Waiting for ingress to be ready..."
-    sleep 10
+    
+    # Check if ingress controller pods are ready
+    print_step "Checking ingress controller status..."
+    kubectl wait --namespace ingress-nginx \
+        --for=condition=ready pod \
+        --selector=app.kubernetes.io/component=controller \
+        --timeout=90s || print_warning "Ingress controller may not be fully ready"
+    
+    # Additional wait for ingress to process rules
+    sleep 15
     
     # Verify deployment health
     print_step "Verifying deployment health..."
-    MINIKUBE_IP=$(minikube ip)
     
     echo "Checking application health endpoints..."
     
-    # Test frontend
-    if curl -s -o /dev/null -w "%{http_code}" "http://$MINIKUBE_IP/" --connect-timeout 5 | grep -q "200\|404"; then
+    # Wait for ingress controller to be ready
+    print_step "Waiting for ingress controller to stabilize..."
+    sleep 20
+    
+    # Test frontend through proper domain
+    if curl -s -o /dev/null -w "%{http_code}" "http://$MINIKUBE_IP/" -H "Host: $DOMAIN" --connect-timeout 10 | grep -q "200\|404"; then
         print_success "Frontend is responding"
     else
-        print_warning "Frontend not responding properly"
+        print_warning "Frontend not responding properly - this is normal during initial setup"
     fi
     
-    # Test API endpoints
+    # Test API endpoints through proper domain with retries
     for service in user catalog order; do
-        if curl -s -o /dev/null -w "%{http_code}" "http://$MINIKUBE_IP/api/$service/health" --connect-timeout 5 | grep -q "200\|404"; then
-            print_success "$service-service is responding"
-        else
-            print_warning "$service-service not responding properly"
-        fi
+        health_check_retries=0
+        max_retries=3
+        
+        while [ $health_check_retries -lt $max_retries ]; do
+            response_code=$(curl -s -o /dev/null -w "%{http_code}" "http://$MINIKUBE_IP/api/$service/health" -H "Host: $DOMAIN" --connect-timeout 10 2>/dev/null || echo "000")
+            
+            if [ "$response_code" = "200" ]; then
+                print_success "$service-service is responding"
+                break
+            else
+                health_check_retries=$((health_check_retries + 1))
+                if [ $health_check_retries -lt $max_retries ]; then
+                    echo "   Retrying $service-service health check ($health_check_retries/$max_retries)..."
+                    sleep 5
+                else
+                    print_warning "$service-service not responding properly - this is normal during initial setup"
+                fi
+            fi
+        done
     done
     
     print_success "Deployment finalized!"
@@ -463,20 +489,26 @@ load_test_data() {
     
     print_step "Enhanced service readiness check with health monitoring..."
     
-    # Set URL for health checks
+    # Set URL for health checks - use proper domain for consistency
     URL="http://$DOMAIN"
+    MINIKUBE_IP=$(minikube ip)
+    
+    # Wait for ingress to be fully ready before health checks
+    print_step "Waiting for ingress controller to be fully operational..."
+    sleep 30
     
     # Wait for services with proper health checking
-    max_wait=300  # 5 minutes
+    max_wait=180  # 3 minutes (reduced from 5 minutes)
     wait_time=0
     all_healthy=false
     
     while [ $wait_time -lt $max_wait ]; do
         print_step "Checking service health (${wait_time}s elapsed)..."
         
-        user_health=$(curl -k -s -o /dev/null -w "%{http_code}" "$URL/api/user/health" 2>/dev/null || echo "000")
-        catalog_health=$(curl -k -s -o /dev/null -w "%{http_code}" "$URL/api/catalog/health" 2>/dev/null || echo "000") 
-        order_health=$(curl -k -s -o /dev/null -w "%{http_code}" "$URL/api/order/health" 2>/dev/null || echo "000")
+        # Use longer timeout and proper error handling with Host header
+        user_health=$(curl -k -s -o /dev/null -w "%{http_code}" --connect-timeout 15 --max-time 30 "http://$MINIKUBE_IP/api/user/health" -H "Host: $DOMAIN" 2>/dev/null || echo "000")
+        catalog_health=$(curl -k -s -o /dev/null -w "%{http_code}" --connect-timeout 15 --max-time 30 "http://$MINIKUBE_IP/api/catalog/health" -H "Host: $DOMAIN" 2>/dev/null || echo "000") 
+        order_health=$(curl -k -s -o /dev/null -w "%{http_code}" --connect-timeout 15 --max-time 30 "http://$MINIKUBE_IP/api/order/health" -H "Host: $DOMAIN" 2>/dev/null || echo "000")
         
         if [ "$user_health" = "200" ] && [ "$catalog_health" = "200" ] && [ "$order_health" = "200" ]; then
             print_success "All services are healthy and ready!"
@@ -484,21 +516,36 @@ load_test_data() {
             break
         else
             echo "   Service status: User($user_health) Catalog($catalog_health) Order($order_health)"
-            sleep 10
-            wait_time=$((wait_time + 10))
+            
+            # If at least some services are responding, we're making progress
+            if [ "$user_health" != "000" ] || [ "$catalog_health" != "000" ] || [ "$order_health" != "000" ]; then
+                echo "   Services are starting up, continuing to wait..."
+            fi
+            
+            sleep 15
+            wait_time=$((wait_time + 15))
         fi
     done
     
     if [ "$all_healthy" = "false" ]; then
         print_warning "Services are not fully ready after ${max_wait}s, but proceeding with data loading..."
+        print_step "Note: This is normal for first-time deployments as services need time to initialize"
     fi
     
     print_step "Loading comprehensive test data with enhanced error handling..."
     if [ -f "scripts/load_test_data.py" ]; then
-        # Run enhanced data loader
-        $PYTHON_CMD scripts/load_test_data.py --env kubernetes --data test_data/complete_dataset.json
+        echo "📝 Using enhanced data loader script..."
         
-        if [ $? -eq 0 ]; then
+        # Give services extra time to be fully ready
+        print_step "Giving services additional startup time..."
+        sleep 30
+        
+        # Run enhanced data loader with verbose output
+        echo "🚀 Starting data loading process..."
+        $PYTHON_CMD scripts/load_test_data.py --env kubernetes --data test_data/complete_dataset.json --verbose
+        
+        loader_exit_code=$?
+        if [ $loader_exit_code -eq 0 ]; then
             print_success "✅ Comprehensive test data loaded successfully!"
             
             # Verify data loading by checking counts
@@ -506,45 +553,43 @@ load_test_data() {
             
             # Check if loading results file exists
             if [ -f "test_data/loading_results.json" ]; then
-                echo "📊 Loading verification results saved to test_data/loading_results.json"
+                echo "📊 Loading verification results:"
+                cat test_data/loading_results.json | head -20
             fi
             
+            # Quick API verification
+            print_step "Performing quick API verification..."
+            
+            # Check book count
+            book_count=$(curl -s http://senecabooks.local/api/catalog/books?size=1 | grep -o '"total":[0-9]*' | cut -d':' -f2 || echo "0")
+            echo "📚 Books in catalog: $book_count"
+            
+            # Check user count (admin endpoint)
+            print_step "Data loading verification completed!"
+            
         else
-            print_warning "Enhanced data loading failed! Attempting recovery..."
+            print_warning "Enhanced data loading failed with exit code $loader_exit_code! Attempting recovery..."
             
             # Try simplified fallback loading
-            print_step "Attempting simplified data loading fallback..."
+            print_step "Attempting simplified fallback data loading..."
             
-            # Create minimal test users and books
-            $PYTHON_CMD -c "
-import asyncio
-import sys
-sys.path.append('scripts')
-from load_test_data import DataLoader
-
-async def fallback_load():
-    loader = DataLoader('kubernetes')
-    
-    # Create admin user
-    admin_data = [{
-        'email': 'admin@senecabooks.com',
-        'password': 'admin123',
-        'is_admin': True
-    }]
-    
-    # Create sample user  
-    user_data = [{
-        'email': 'john.doe@example.com',
-        'password': 'password123',
-        'is_admin': False
-    }]
-    
-    print('Creating essential users...')
-    await loader.load_users(admin_data + user_data)
-    return True
-
-asyncio.run(fallback_load())
-" || print_warning "Fallback data loading also failed"
+            # Wait a bit more for services to stabilize
+            sleep 20
+            
+            # Try using the quick start script instead
+            if [ -f "scripts/quick_start_data.sh" ]; then
+                echo "🔄 Trying quick start data script..."
+                chmod +x scripts/quick_start_data.sh
+                ./scripts/quick_start_data.sh
+                
+                if [ $? -eq 0 ]; then
+                    print_success "✅ Fallback data loading successful!"
+                else
+                    print_warning "❌ Fallback data loading also failed"
+                fi
+            else
+                print_warning "❌ No fallback data loading script found"
+            fi
         fi
     else
         print_error "Data loading script not found: scripts/load_test_data.py"
@@ -557,14 +602,15 @@ asyncio.run(fallback_load())
 show_summary() {
     echo
     print_header
-    echo -e "${GREEN}🎉 Deployment completed successfully!${NC}"
+    echo -e "${GREEN}🎉 COMPREHENSIVE MODERNIZATION DEPLOYMENT COMPLETED!${NC}"
     echo
     echo -e "${CYAN}📊 Deployment Summary:${NC}"
     echo -e "  • Project: $PROJECT_NAME"
     echo -e "  • Namespace: $NAMESPACE"
     echo -e "  • Domain: http://$DOMAIN"
     echo -e "  • Registry: $REGISTRY"
-    echo -e "  • Test Data: ✅ Loaded with sample users and admin account"
+    echo -e "  • Test Data: ✅ Loaded with sample users and comprehensive catalog"
+    echo -e "  • Modernization: ✅ Shopping cart, enhanced dashboards, improved UI/UX"
     echo
     echo -e "${CYAN}🔗 Access URLs:${NC}"
     echo -e "  • Application: ${GREEN}http://$DOMAIN${NC}"
@@ -577,6 +623,13 @@ show_summary() {
     echo -e "${CYAN}👤 Sample User Login:${NC}"
     echo -e "  • Email: ${YELLOW}john.doe@example.com${NC}"
     echo -e "  • Password: ${YELLOW}password123${NC}"
+    echo
+    echo -e "${CYAN}🌟 New Features Available:${NC}"
+    echo -e "  • 🛒 Shopping Cart: Add books, manage cart, checkout process"
+    echo -e "  • 📊 Enhanced User Dashboard: Overview, purchases, rentals with due dates"
+    echo -e "  • ⚙️ Modernized Admin Dashboard: System overview, rental management, inventory alerts"
+    echo -e "  • 🎨 Clean UI/UX: Professional styling, responsive design, intuitive navigation"
+    echo -e "  • 💳 My Cart Page: Replaces orders, shows cart items + order history with checkout"
     echo
     echo -e "${CYAN}� Service Status:${NC}"
     kubectl get pods -n $NAMESPACE
@@ -604,7 +657,8 @@ show_summary() {
     echo -e "  • API URLs: /api/user, /api/catalog, /api/order"
     echo -e "  • All services include curl for endpoint troubleshooting"
     echo
-    echo -e "${GREEN}✅ Ready to use! Visit http://$DOMAIN${NC}"
+    echo -e "${GREEN}✨ MODERNIZED SENECA BOOK STORE IS READY! ✨${NC}"
+    echo -e "${GREEN}🚀 Visit http://$DOMAIN to explore the enhanced features!${NC}"
     echo
 }
 

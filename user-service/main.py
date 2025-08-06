@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import uvicorn
 from datetime import timedelta
@@ -21,6 +22,15 @@ logging.basicConfig(
 logger = logging.getLogger("user-service")
 
 app = FastAPI(title="User Service", version="1.0.0", description="User management and authentication service")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://senecabooks.local", "https://senecabooks.local", "*"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+)
 
 # Initialize Prometheus metrics
 metrics = init_metrics("user-service")
@@ -150,6 +160,11 @@ async def login_user(user_credentials: schemas.UserLogin, db: Session = Depends(
 async def read_users_me(current_user: schemas.UserResponse = Depends(get_current_user)):
     """Get current user information."""
     return current_user
+
+@app.get("/validate")
+async def validate_token(current_user: schemas.UserResponse = Depends(get_current_user)):
+    """Validate token and return user info."""
+    return {"valid": True, "user": current_user}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -7,7 +7,7 @@ Generates realistic sample data for users, books, and orders across all services
 import json
 import random
 import string
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any
 import hashlib
 import uuid
@@ -228,7 +228,7 @@ class TestDataGenerator:
                 "password": user_data["password"],  # Plain text for reference
                 "full_name": user_data["full_name"],
                 "is_admin": user_data.get("is_admin", False),
-                "created_at": (datetime.utcnow() - timedelta(days=random.randint(1, 365))).isoformat()
+                "created_at": (datetime.now(timezone.utc) - timedelta(days=random.randint(1, 365))).isoformat()
             })
         
         # Generate additional random users
@@ -260,7 +260,7 @@ class TestDataGenerator:
                 "password": "password123",  # Plain text for reference
                 "full_name": f"{first_name} {last_name}",
                 "is_admin": random.choice([True, False]) if random.random() < 0.1 else False,  # 10% chance of admin
-                "created_at": (datetime.utcnow() - timedelta(days=random.randint(1, 365))).isoformat()
+                "created_at": (datetime.now(timezone.utc) - timedelta(days=random.randint(1, 365))).isoformat()
             })
         
         self.users = users
@@ -369,8 +369,8 @@ class TestDataGenerator:
                 "category": category,
                 "price": round(random.uniform(19.99, 89.99), 2),
                 "rent_price": round(random.uniform(2.99, 8.99), 2),
-                "available": random.choice([True, True, True, False]),  # 75% available
-                "stock_quantity": random.randint(0, 50),
+                "available": True,  # Always available for test data
+                "stock_quantity": random.randint(5, 50),  # Minimum 5 stock to allow orders
                 "publication_year": random.randint(2000, 2024),
                 "publisher": random.choice(publishers),
                 "cover_url": self.generate_cover_url(isbn),
@@ -381,16 +381,25 @@ class TestDataGenerator:
         self.books = books
         return books
     
-    def generate_orders(self, user_count: int = 50, book_count: int = 200, order_count: int = 300) -> List[Dict[str, Any]]:
-        """Generate test order data."""
+    def generate_orders(self, user_count: int = 50, book_count: int = 200, order_count: int = 150) -> List[Dict[str, Any]]:
+        """Generate test order data with realistic stock management."""
         orders = []
         
         order_types = ["buy", "rent"]
         order_statuses = ["pending", "confirmed", "completed", "cancelled", "returned"]
         
-        for i in range(order_count):
+        # Track available stock for realistic ordering
+        available_books = [i for i in range(1, min(book_count, len(self.books)) + 1)]
+        
+        successful_orders = 0
+        attempts = 0
+        max_attempts = order_count * 2  # Prevent infinite loops
+        
+        while successful_orders < order_count and attempts < max_attempts and available_books:
+            attempts += 1
+            
             user_id = random.randint(1, min(user_count, len(self.users)))
-            book_id = random.randint(1, min(book_count, len(self.books)))
+            book_id = random.choice(available_books)
             
             # Get book info for the order
             book = self.books[book_id - 1] if book_id <= len(self.books) else {
@@ -403,7 +412,7 @@ class TestDataGenerator:
             
             order_type = random.choice(order_types)
             unit_price = book["price"] if order_type == "buy" else book["rent_price"]
-            quantity = random.randint(1, 3)
+            quantity = 1  # Keep quantity simple to avoid stock issues
             
             # For rent orders, calculate rental period
             rental_days = None
@@ -414,7 +423,7 @@ class TestDataGenerator:
             
             if order_type == "rent":
                 rental_days = random.randint(7, 30)  # 1-4 weeks
-                start_date = datetime.utcnow() - timedelta(days=random.randint(0, 60))
+                start_date = datetime.now(timezone.utc) - timedelta(days=random.randint(0, 60))
                 rental_start_date = start_date.isoformat()
                 rental_end_date = (start_date + timedelta(days=rental_days)).isoformat()
                 total_amount = unit_price * quantity * rental_days
@@ -435,7 +444,7 @@ class TestDataGenerator:
                 elif random.random() < 0.8:
                     status = "confirmed"
             
-            order_date = datetime.utcnow() - timedelta(days=random.randint(0, 180))
+            order_date = datetime.now(timezone.utc) - timedelta(days=random.randint(0, 180))
             
             orders.append({
                 "user_id": user_id,
@@ -456,12 +465,19 @@ class TestDataGenerator:
                 "created_at": order_date.isoformat(),
                 "updated_at": (order_date + timedelta(days=random.randint(0, 10))).isoformat()
             })
+            
+            successful_orders += 1
+            
+            # Remove book from available list occasionally to simulate stock depletion
+            if order_type == "buy" and random.random() < 0.15:  # 15% chance of depleting stock
+                available_books.remove(book_id)
         
         self.orders = orders
+        print(f"✅ Generated {len(orders)} orders from {attempts} attempts")
         return orders
     
-    def generate_all_data(self, users: int = 50, books: int = 200, orders: int = 300) -> Dict[str, Any]:
-        """Generate all test data."""
+    def generate_all_data(self, users: int = 50, books: int = 200, orders: int = 120) -> Dict[str, Any]:
+        """Generate all test data with realistic proportions."""
         print(f"🔄 Generating comprehensive test data...")
         print(f"   👥 Users: {users}")
         print(f"   📚 Books: {books}")
@@ -469,13 +485,13 @@ class TestDataGenerator:
         
         users_data = self.generate_users(users)
         books_data = self.generate_books(books) 
-        orders_data = self.generate_orders(users, books, orders)
+        orders_data = self.generate_orders(len(users_data), len(books_data), orders)
         
         return {
             "users": users_data,
             "books": books_data,
             "orders": orders_data,
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "stats": {
                 "total_users": len(users_data),
                 "admin_users": len([u for u in users_data if u.get("is_admin", False)]),
@@ -513,8 +529,8 @@ class TestDataGenerator:
 if __name__ == "__main__":
     generator = TestDataGenerator()
     
-    # Generate comprehensive test data
-    test_data = generator.generate_all_data(users=50, books=200, orders=300)
+    # Generate comprehensive test data with realistic proportions
+    test_data = generator.generate_all_data(users=50, books=200, orders=120)
     
     # Save to files
     generator.save_to_files(test_data)

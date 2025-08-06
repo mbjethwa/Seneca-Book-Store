@@ -48,20 +48,25 @@ class DataLoader:
         print("⏳ Waiting for services to be ready...")
         
         services = ["user", "catalog", "order"]
-        max_attempts = 30  # 5 minutes with 10s intervals
+        max_attempts = 60  # 10 minutes with 10s intervals
         
         for attempt in range(max_attempts):
             all_ready = True
             
-            async with httpx.AsyncClient(timeout=10.0, verify=self.verify_ssl) as client:
+            async with httpx.AsyncClient(timeout=15.0, verify=self.verify_ssl) as client:
                 for service in services:
                     try:
                         health_url = f"{self.base_urls[service]}/health"
+                        print(f"   🔍 Checking {service} at {health_url}")
                         response = await client.get(health_url)
                         if response.status_code != 200:
+                            print(f"   ❌ {service} returned status {response.status_code}")
                             all_ready = False
                             break
-                    except Exception:
+                        else:
+                            print(f"   ✅ {service} is healthy")
+                    except Exception as e:
+                        print(f"   ❌ {service} connection failed: {str(e)}")
                         all_ready = False
                         break
             
@@ -97,37 +102,48 @@ class DataLoader:
                         json=register_data
                     )
                     
+                    user_created = False
                     if response.status_code == 200:
                         user_info = response.json()
                         created_users[user["email"]] = user_info
-                        
-                        # Login to get token
-                        login_response = await client.post(
-                            f"{self.base_urls['user']}/login",
-                            json={
-                                "email": user["email"],
-                                "password": user["password"]
-                            }
-                        )
-                        
-                        if login_response.status_code == 200:
-                            token_data = login_response.json()
-                            self.user_tokens[user["email"]] = token_data["access_token"]
-                            
-                            # Set admin token for first admin user
-                            if user.get("is_admin", False) and not self.admin_token:
-                                self.admin_token = token_data["access_token"]
-                                admin_users.append(user["email"])
-                        
-                        if i % 10 == 0:
-                            print(f"   ✅ Created {i}/{len(users_data)} users")
+                        user_created = True
                     else:
-                        print(f"   ⚠️  Failed to create user {user['email']}: {response.text}")
+                        # User might already exist, that's okay
+                        if "already registered" in response.text:
+                            print(f"   ℹ️  User {user['email']} already exists, attempting login...")
+                        else:
+                            print(f"   ⚠️  Failed to create user {user['email']}: {response.text}")
+                    
+                    # Always attempt to login (for both new and existing users)
+                    login_response = await client.post(
+                        f"{self.base_urls['user']}/login",
+                        json={
+                            "email": user["email"],
+                            "password": user["password"]
+                        }
+                    )
+                    
+                    if login_response.status_code == 200:
+                        token_data = login_response.json()
+                        self.user_tokens[user["email"]] = token_data["access_token"]
+                        
+                        # Set admin token for first admin user (new or existing)
+                        if user.get("is_admin", False) and not self.admin_token:
+                            self.admin_token = token_data["access_token"]
+                            admin_users.append(user["email"])
+                            print(f"   👑 Admin token obtained from {user['email']}")
+                    else:
+                        print(f"   ❌ Failed to login user {user['email']}: {login_response.text}")
+                        
+                    if i % 10 == 0:
+                        print(f"   📊 Processed {i}/{len(users_data)} users")
                         
                 except Exception as e:
-                    print(f"   ❌ Error creating user {user['email']}: {str(e)}")
+                    print(f"   ❌ Error processing user {user['email']}: {str(e)}")
             
-            print(f"   ✅ Successfully created {len(created_users)} users")
+            print(f"   ✅ Successfully processed {len(users_data)} users")
+            print(f"   🆕 New users created: {len(created_users)}")
+            print(f"   🔑 User tokens obtained: {len(self.user_tokens)}")
             print(f"   👑 Admin users: {len(admin_users)}")
             return created_users
     
@@ -141,6 +157,7 @@ class DataLoader:
         
         async with httpx.AsyncClient(timeout=30.0, verify=self.verify_ssl) as client:
             created_books = {}
+            existing_books = 0
             
             headers = {"Authorization": f"Bearer {self.admin_token}"}
             
@@ -174,45 +191,76 @@ class DataLoader:
                         created_books[book["isbn"]] = book_info
                         
                         if i % 20 == 0:
-                            print(f"   ✅ Created {i}/{len(books_data)} books")
+                            print(f"   📊 Processed {i}/{len(books_data)} books")
                     else:
-                        print(f"   ⚠️  Failed to create book {book['title']}: {response.text}")
+                        # Book might already exist
+                        if "already exists" in response.text or response.status_code == 400:
+                            existing_books += 1
+                            if i % 20 == 0:
+                                print(f"   📊 Processed {i}/{len(books_data)} books (some already existed)")
+                        else:
+                            print(f"   ⚠️  Failed to create book {book['title']}: {response.text}")
                         
                 except Exception as e:
                     print(f"   ❌ Error creating book {book['title']}: {str(e)}")
             
-            print(f"   ✅ Successfully created {len(created_books)} books")
+            print(f"   ✅ Successfully processed {len(books_data)} books")
+            print(f"   🆕 New books created: {len(created_books)}")
+            print(f"   📚 Existing books found: {existing_books}")
             return created_books
     
     async def load_orders(self, orders_data: list, created_users: dict, created_books: dict) -> dict:
-        """Load orders into the order service with enhanced error handling."""
+        """Load orders into the order service with enhanced error handling and smart book selection."""
         print("📦 Loading orders...")
         
         if not self.user_tokens:
             print("   ❌ No user tokens available. Cannot load orders.")
             return {}
-            
-        if not created_books:
-            print("   ❌ No books available. Cannot create orders.")
-            return {}
         
         async with httpx.AsyncClient(timeout=30.0, verify=self.verify_ssl) as client:
             created_orders = {}
             user_emails = list(self.user_tokens.keys())
-            book_ids = []
+            available_books = []
             
-            # Extract book IDs from created books
-            for book_data in created_books.values():
-                if isinstance(book_data, dict) and 'id' in book_data:
-                    book_ids.append(book_data['id'])
+            # Get available books from the catalog service
+            if self.admin_token:
+                try:
+                    headers = {"Authorization": f"Bearer {self.admin_token}"}
+                    books_response = await client.get(
+                        f"{self.base_urls['catalog']}/books?size=100&available_only=true",
+                        headers=headers
+                    )
+                    
+                    if books_response.status_code == 200:
+                        books_data = books_response.json()
+                        # Handle both list and dict response formats
+                        if isinstance(books_data, dict) and 'books' in books_data:
+                            books_list = books_data['books']
+                        elif isinstance(books_data, list):
+                            books_list = books_data
+                        else:
+                            books_list = []
+                        
+                        # Filter for available books with stock > 0
+                        for book in books_list:
+                            if (isinstance(book, dict) and 
+                                book.get('available', False) and 
+                                book.get('stock_quantity', 0) > 0):
+                                available_books.append(book)
+                        
+                        print(f"   📚 Found {len(available_books)} available books with stock")
+                    
+                except Exception as e:
+                    print(f"   ⚠️  Could not fetch available books: {str(e)}")
             
-            if not book_ids:
-                print("   ❌ No valid book IDs found. Cannot create orders.")
+            if not available_books:
+                print("   ❌ No available books found. Cannot create orders.")
                 return {}
             
             success_count = 0
+            target_orders = min(len(orders_data), len(available_books) * 2)  # Reasonable limit
             
-            for i, order in enumerate(orders_data, 1):
+            for i, order in enumerate(orders_data[:target_orders], 1):
                 try:
                     # Select user token (cycle through available users)
                     user_email = user_emails[(order["user_id"] - 1) % len(user_emails)]
@@ -221,14 +269,15 @@ class DataLoader:
                     if not token:
                         continue
                     
-                    # Select book ID (cycle through available books)
-                    book_id = book_ids[(order["book_id"] - 1) % len(book_ids)]
+                    # Select available book (prefer books with higher stock)
+                    book_index = (i - 1) % len(available_books)
+                    selected_book = available_books[book_index]
                     
                     # Create order data matching the order service schema
                     order_data = {
-                        "book_id": book_id,
+                        "book_id": selected_book["id"],
                         "order_type": order["order_type"],
-                        "quantity": order.get("quantity", 1),
+                        "quantity": min(order.get("quantity", 1), selected_book.get("stock_quantity", 1)),
                         "notes": f"Test order loaded from data - {order.get('notes', '')}"
                     }
                     
@@ -252,12 +301,18 @@ class DataLoader:
                                 created_orders[order_info["id"]] = order_info
                                 success_count += 1
                                 
+                                # Update local book stock tracking
+                                selected_book["stock_quantity"] -= order_data["quantity"]
+                                if selected_book["stock_quantity"] <= 0:
+                                    available_books.remove(selected_book)
+                                
                                 if success_count % 10 == 0:
                                     print(f"   ✅ Created {success_count} orders")
                                 break
                             else:
                                 if retry == self.max_retries - 1:
-                                    print(f"   ⚠️  Failed to create order after {self.max_retries} attempts: {response.text[:100]}")
+                                    error_text = response.text[:100] if hasattr(response, 'text') else str(response.content)[:100]
+                                    print(f"   ⚠️  Failed to create order after {self.max_retries} attempts: {error_text}")
                                 else:
                                     await asyncio.sleep(self.retry_delay)
                         except Exception as e:
@@ -268,6 +323,11 @@ class DataLoader:
                         
                 except Exception as e:
                     print(f"   ❌ Error processing order {i}: {str(e)[:100]}")
+                
+                # Stop if we run out of available books
+                if not available_books:
+                    print(f"   ⚠️  Stopping order creation - no more available books")
+                    break
             
             print(f"   ✅ Successfully created {success_count} orders")
             return created_orders
@@ -396,8 +456,15 @@ async def main():
                        help="Target environment (default: kubernetes)")
     parser.add_argument("--data", default="test_data/complete_dataset.json",
                        help="Path to test data file")
+    parser.add_argument("--verbose", "-v", action="store_true",
+                       help="Enable verbose output")
     
     args = parser.parse_args()
+    
+    if args.verbose:
+        print(f"🔧 Environment: {args.env}")
+        print(f"📄 Data file: {args.data}")
+        print(f"🌐 Target URLs: {API_BASE_URLS[args.env]}")
     
     loader = DataLoader(environment=args.env)
     success = await loader.load_all_data(args.data)
@@ -406,7 +473,7 @@ async def main():
         print("\n✅ All data loaded successfully!")
         print(f"\n🌐 Access the application:")
         if args.env == "kubernetes":
-            print("   https://senecabooks.local")
+            print("   http://senecabooks.local")
         else:
             print("   http://localhost:3000")
         
