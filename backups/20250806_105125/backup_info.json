@@ -1,0 +1,8 @@
+{
+    "backup_date": "2025-08-06T10:51:26-04:00",
+    "environment": "kubernetes",
+    "namespace": "seneca-bookstore",
+    "files": [
+        "catalog.db","orders.db","users.db"
+    ]
+}

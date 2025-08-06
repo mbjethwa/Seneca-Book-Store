@@ -367,7 +367,7 @@ load_test_data() {
             
             # Verify virtual environment is activated
             if [[ "$VIRTUAL_ENV" != "" ]]; then
-                print_success "Virtual environment activated: $(basename $VIRTUAL_ENV)"
+                print_success "Virtual environment activated: $(basename "$VIRTUAL_ENV")"
             else
                 print_warning "Failed to activate virtual environment, falling back to system Python"
                 return 1
@@ -462,6 +462,9 @@ load_test_data() {
     fi
     
     print_step "Enhanced service readiness check with health monitoring..."
+    
+    # Set URL for health checks
+    URL="http://$DOMAIN"
     
     # Wait for services with proper health checking
     max_wait=300  # 5 minutes
