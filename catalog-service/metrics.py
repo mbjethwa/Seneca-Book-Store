@@ -52,6 +52,22 @@ BOOK_SEARCHES = Counter(
     'Total book searches'
 )
 
+# Catalog-specific metrics
+BOOKS_BROWSED = Counter(
+    'books_browsed_total',
+    'Total book browse requests'
+)
+
+BOOKS_VIEWED = Counter(
+    'books_viewed_total',
+    'Total individual book views'
+)
+
+CATALOG_SEARCH_QUERIES = Counter(
+    'catalog_search_queries_total',
+    'Total catalog search queries'
+)
+
 ORDERS_CREATED = Counter(
     'orders_created_total',
     'Total orders created',
@@ -109,6 +125,22 @@ class PrometheusMetrics:
         """Record an order creation."""
         ORDERS_CREATED.labels(order_type=order_type).inc()
         ORDERS_VALUE.labels(order_type=order_type).inc(value)
+    
+    # Catalog service specific metrics
+    @property
+    def books_browsed(self):
+        """Access to books browsed counter."""
+        return BOOKS_BROWSED
+    
+    @property
+    def books_viewed(self):
+        """Access to books viewed counter."""
+        return BOOKS_VIEWED
+    
+    @property
+    def catalog_search_queries(self):
+        """Access to catalog search queries counter."""
+        return CATALOG_SEARCH_QUERIES
     
     def get_metrics(self):
         """Get Prometheus metrics in the expected format."""

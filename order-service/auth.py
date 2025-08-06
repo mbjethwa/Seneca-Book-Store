@@ -38,6 +38,15 @@ async def get_current_user(user_data: dict = Depends(verify_user_token)) -> dict
     """Get current authenticated user."""
     return user_data
 
+async def get_admin_user(current_user: dict = Depends(get_current_user)) -> dict:
+    """Get current user and verify admin privileges."""
+    if not current_user.get("is_admin", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required"
+        )
+    return current_user
+
 async def get_book_info(book_id: int) -> Optional[dict]:
     """Get book information from catalog service."""
     try:

@@ -20,8 +20,8 @@ spec:
       serviceAccountName: user-service-sa
       containers:
       - name: user-service
-        image: localhost:5000/user-service:latest
-        imagePullPolicy: Always
+        image: user-service:latest
+        imagePullPolicy: Never
         ports:
         - containerPort: 8000
           name: http
@@ -34,7 +34,7 @@ spec:
               name: bookstore-secrets
               key: SECRET_KEY
         - name: DATABASE_URL
-          value: "sqlite:////tmp/users.db"
+          value: "sqlite:////data/users.db"
         - name: ACCESS_TOKEN_EXPIRE_MINUTES
           valueFrom:
             configMapKeyRef:

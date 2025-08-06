@@ -20,8 +20,8 @@ spec:
       serviceAccountName: catalog-service-sa
       containers:
       - name: catalog-service
-        image: localhost:5000/catalog-service:latest
-        imagePullPolicy: Always
+        image: catalog-service:latest
+        imagePullPolicy: Never
         ports:
         - containerPort: 8000
           name: http
@@ -29,7 +29,7 @@ spec:
         - name: PORT
           value: "8000"
         - name: DATABASE_URL
-          value: "sqlite:////tmp/catalog.db"
+          value: "sqlite:////data/catalog.db"
         - name: USER_SERVICE_URL
           valueFrom:
             configMapKeyRef:
@@ -41,7 +41,10 @@ spec:
               name: bookstore-config
               key: CORS_ORIGINS
         - name: ADMIN_EMAILS
-          value: "admin@seneca.ca,admin@example.com"
+          valueFrom:
+            configMapKeyRef:
+              name: bookstore-config
+              key: ADMIN_EMAILS
         volumeMounts:
         - name: data-storage
           mountPath: /data

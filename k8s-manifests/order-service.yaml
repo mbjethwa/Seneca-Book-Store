@@ -20,8 +20,8 @@ spec:
       serviceAccountName: order-service-sa
       containers:
       - name: order-service
-        image: localhost:5000/order-service:latest
-        imagePullPolicy: Always
+        image: order-service:latest
+        imagePullPolicy: Never
         ports:
         - containerPort: 8000
           name: http
@@ -29,7 +29,7 @@ spec:
         - name: PORT
           value: "8000"
         - name: DATABASE_URL
-          value: "sqlite:////tmp/orders.db"
+          value: "sqlite:////data/orders.db"
         - name: USER_SERVICE_URL
           valueFrom:
             configMapKeyRef:

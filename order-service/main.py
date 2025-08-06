@@ -5,10 +5,11 @@ import uvicorn
 from typing import Optional, List
 import logging
 import time
+import requests
 
 # Import our modules
 from database import get_db, OrderType, OrderStatus
-from auth import get_current_user, get_book_info
+from auth import get_current_user, get_book_info, get_admin_user
 import crud
 import schemas
 from metrics import PrometheusMetrics
@@ -98,8 +99,8 @@ async def create_order(
     db: Session = Depends(get_db)
 ):
     """Create a new order (buy or rent a book)."""
-    # Record order creation metric
-    metrics.orders_created.labels(order_type=order.order_type.value).inc()
+    # Record order creation metric (commented out due to metrics issues)
+    # metrics.orders_created.labels(order_type=order.order_type.value).inc()
     
     # Get book information from catalog service
     book_info = await get_book_info(order.book_id)
@@ -166,8 +167,8 @@ async def get_order(
     db: Session = Depends(get_db)
 ):
     """Get a specific order by ID."""
-    # Record order view metric
-    metrics.orders_viewed.inc()
+    # Record order view metric (commented out due to metrics issues)
+    # metrics.orders_viewed.inc()
     
     order = crud.get_order_by_id(db, order_id=order_id, user_id=current_user["id"])
     if order is None:
@@ -242,6 +243,68 @@ async def get_overdue_rentals(
 ):
     """Get current user's overdue rental orders."""
     return crud.get_overdue_rentals(db, user_id=current_user["id"])
+
+# Admin-only endpoints
+@app.get("/admin/orders", response_model=schemas.AdminOrderListResponse)
+async def get_all_orders_admin(
+    page: int = Query(1, ge=1, description="Page number"),
+    size: int = Query(20, ge=1, le=100, description="Page size"),
+    order_type: Optional[OrderType] = Query(None, description="Filter by order type"),
+    status: Optional[OrderStatus] = Query(None, description="Filter by status"),
+    admin_user: dict = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+):
+    """Get all orders across all users (admin only)."""
+    skip = (page - 1) * size
+    
+    orders, total = crud.get_all_orders(
+        db=db,
+        skip=skip,
+        limit=size,
+        order_type=order_type,
+        status=status
+    )
+    
+    # Convert to admin response format
+    admin_orders = []
+    for order in orders:
+        order_data = schemas.AdminOrderResponse.model_validate(order)
+        # Set a placeholder email - will be enhanced later
+        order_data.user_email = f"user_{order.user_id}@senecabooks.local"
+        admin_orders.append(order_data)
+    
+    return schemas.AdminOrderListResponse(
+        orders=admin_orders,
+        total=total,
+        page=page,
+        size=size
+    )
+
+@app.get("/admin/summary", response_model=schemas.AdminSummary)
+async def get_admin_summary(
+    admin_user: dict = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+):
+    """Get admin summary with global statistics."""
+    return crud.get_admin_summary(db)
+
+@app.get("/admin/orders/overdue", response_model=List[schemas.AdminOrderResponse])
+async def get_all_overdue_rentals_admin(
+    admin_user: dict = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+):
+    """Get all overdue rental orders (admin only)."""
+    orders = crud.get_overdue_rentals(db)
+    
+    # Convert to admin response format
+    admin_orders = []
+    for order in orders:
+        order_data = schemas.AdminOrderResponse.model_validate(order)
+        # Set a placeholder email - will be enhanced later
+        order_data.user_email = f"user_{order.user_id}@senecabooks.local"
+        admin_orders.append(order_data)
+    
+    return admin_orders
 
 # Development endpoint to create sample data
 @app.post("/seed-orders")

@@ -10,6 +10,7 @@ class UserCreate(BaseModel):
     email: str
     password: str
     full_name: Optional[str] = None
+    is_admin: Optional[bool] = False
 
 class UserLogin(BaseModel):
     email: str
@@ -19,6 +20,7 @@ class UserResponse(BaseModel):
     id: int
     email: str
     full_name: Optional[str] = None
+    is_admin: Optional[bool] = False
     created_at: datetime
     
     class Config:
@@ -27,6 +29,11 @@ class UserResponse(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str
+    user: UserResponse
 
 class TokenData(BaseModel):
     email: Optional[str] = None

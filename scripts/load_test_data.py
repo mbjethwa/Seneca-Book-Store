@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Data Loader for Seneca Book Store Services
-Loads test data into the respective service databases.
+🚀 Comprehensive Data Loader for Seneca Book Store Services
+Loads test data into the respective service databases with enhanced error handling and robustness.
+Supports both development and Kubernetes environments.
 """
 
 import sys
@@ -9,7 +10,11 @@ import os
 import json
 import asyncio
 import httpx
+import urllib3
 from pathlib import Path
+
+# Disable SSL warnings for self-signed certificates
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Configuration
 API_BASE_URLS = {
@@ -19,22 +24,56 @@ API_BASE_URLS = {
         "order": "http://localhost:8003"
     },
     "kubernetes": {
-        "user": "https://senecabooks.local/api/user",
-        "catalog": "https://senecabooks.local/api/catalog",
-        "order": "https://senecabooks.local/api/order"
+        "user": "http://senecabooks.local/api/user",
+        "catalog": "http://senecabooks.local/api/catalog",
+        "order": "http://senecabooks.local/api/order"
     }
 }
 
 class DataLoader:
-    """Loads test data into Seneca Book Store services."""
+    """Comprehensive data loader for Seneca Book Store services with enhanced error handling."""
     
     def __init__(self, environment: str = "kubernetes"):
         self.environment = environment
         self.base_urls = API_BASE_URLS[environment]
         self.admin_token = None
         self.user_tokens = {}
-        # Configure SSL verification - disable for self-signed certificates
-        self.verify_ssl = False if environment == "kubernetes" else True
+        # Always disable SSL verification for Kubernetes (self-signed certs)
+        self.verify_ssl = False
+        self.max_retries = 3
+        self.retry_delay = 2  # seconds
+        
+    async def wait_for_services(self):
+        """Wait for all services to be ready before loading data."""
+        print("⏳ Waiting for services to be ready...")
+        
+        services = ["user", "catalog", "order"]
+        max_attempts = 30  # 5 minutes with 10s intervals
+        
+        for attempt in range(max_attempts):
+            all_ready = True
+            
+            async with httpx.AsyncClient(timeout=10.0, verify=self.verify_ssl) as client:
+                for service in services:
+                    try:
+                        health_url = f"{self.base_urls[service]}/health"
+                        response = await client.get(health_url)
+                        if response.status_code != 200:
+                            all_ready = False
+                            break
+                    except Exception:
+                        all_ready = False
+                        break
+            
+            if all_ready:
+                print("✅ All services are ready!")
+                return True
+            
+            print(f"   ⏳ Attempt {attempt + 1}/{max_attempts} - Services not ready yet, waiting 10s...")
+            await asyncio.sleep(10)
+        
+        print("❌ Services failed to become ready within timeout")
+        return False
         
     async def load_users(self, users_data: list) -> dict:
         """Load users into the user service."""
@@ -146,69 +185,91 @@ class DataLoader:
             return created_books
     
     async def load_orders(self, orders_data: list, created_users: dict, created_books: dict) -> dict:
-        """Load orders into the order service."""
+        """Load orders into the order service with enhanced error handling."""
         print("📦 Loading orders...")
         
         if not self.user_tokens:
             print("   ❌ No user tokens available. Cannot load orders.")
             return {}
+            
+        if not created_books:
+            print("   ❌ No books available. Cannot create orders.")
+            return {}
         
         async with httpx.AsyncClient(timeout=30.0, verify=self.verify_ssl) as client:
             created_orders = {}
-            user_emails = list(created_users.keys())
-            book_isbns = list(created_books.keys())
+            user_emails = list(self.user_tokens.keys())
+            book_ids = []
+            
+            # Extract book IDs from created books
+            for book_data in created_books.values():
+                if isinstance(book_data, dict) and 'id' in book_data:
+                    book_ids.append(book_data['id'])
+            
+            if not book_ids:
+                print("   ❌ No valid book IDs found. Cannot create orders.")
+                return {}
+            
+            success_count = 0
             
             for i, order in enumerate(orders_data, 1):
                 try:
-                    # Get a random user token
-                    if not user_emails:
-                        continue
-                        
+                    # Select user token (cycle through available users)
                     user_email = user_emails[(order["user_id"] - 1) % len(user_emails)]
                     token = self.user_tokens.get(user_email)
                     
                     if not token:
                         continue
                     
-                    # Get a random book
-                    if not book_isbns:
-                        continue
-                        
-                    book_isbn = book_isbns[(order["book_id"] - 1) % len(book_isbns)]
-                    book_info = created_books[book_isbn]
+                    # Select book ID (cycle through available books)
+                    book_id = book_ids[(order["book_id"] - 1) % len(book_ids)]
                     
                     # Create order data matching the order service schema
                     order_data = {
-                        "book_id": book_info["id"],
+                        "book_id": book_id,
                         "order_type": order["order_type"],
-                        "quantity": order["quantity"]
+                        "quantity": order.get("quantity", 1),
+                        "notes": f"Test order loaded from data - {order.get('notes', '')}"
                     }
                     
                     # Add rental days for rent orders
-                    if order["order_type"] == "rent" and order.get("rental_days"):
-                        order_data["rental_days"] = order["rental_days"]
+                    if order["order_type"] == "rent":
+                        order_data["rental_days"] = order.get("rental_days", 14)  # Default 14 days
                     
                     headers = {"Authorization": f"Bearer {token}"}
                     
-                    response = await client.post(
-                        f"{self.base_urls['order']}/orders",
-                        json=order_data,
-                        headers=headers
-                    )
-                    
-                    if response.status_code == 200:
-                        order_info = response.json()
-                        created_orders[f"{user_email}_{book_info['id']}_{i}"] = order_info
-                        
-                        if i % 25 == 0:
-                            print(f"   ✅ Created {i}/{len(orders_data)} orders")
-                    else:
-                        print(f"   ⚠️  Failed to create order for {user_email}: {response.text}")
+                    # Retry logic for order creation
+                    for retry in range(self.max_retries):
+                        try:
+                            response = await client.post(
+                                f"{self.base_urls['order']}/orders",
+                                json=order_data,
+                                headers=headers
+                            )
+                            
+                            if response.status_code == 200:
+                                order_info = response.json()
+                                created_orders[order_info["id"]] = order_info
+                                success_count += 1
+                                
+                                if success_count % 10 == 0:
+                                    print(f"   ✅ Created {success_count} orders")
+                                break
+                            else:
+                                if retry == self.max_retries - 1:
+                                    print(f"   ⚠️  Failed to create order after {self.max_retries} attempts: {response.text[:100]}")
+                                else:
+                                    await asyncio.sleep(self.retry_delay)
+                        except Exception as e:
+                            if retry == self.max_retries - 1:
+                                print(f"   ❌ Error creating order (attempt {retry + 1}): {str(e)[:100]}")
+                            else:
+                                await asyncio.sleep(self.retry_delay)
                         
                 except Exception as e:
-                    print(f"   ❌ Error creating order {i}: {str(e)}")
+                    print(f"   ❌ Error processing order {i}: {str(e)[:100]}")
             
-            print(f"   ✅ Successfully created {len(created_orders)} orders")
+            print(f"   ✅ Successfully created {success_count} orders")
             return created_orders
     
     async def verify_data_loading(self) -> dict:
@@ -258,10 +319,14 @@ class DataLoader:
             
             return verification
     
-    async def load_all_data(self, data_file: str = "test_data/complete_dataset.json"):
-        """Load all test data into the services."""
+    async def load_all_data(self, data_file: str = "test_data/complete_dataset.json") -> bool:
+        """Load all test data with enhanced service readiness checking."""
         print("🚀 Starting comprehensive data loading...")
         print("=" * 50)
+        
+        # Wait for services to be ready
+        if not await self.wait_for_services():
+            return False
         
         # Load test data
         if not os.path.exists(data_file):
@@ -279,7 +344,7 @@ class DataLoader:
         print(f"   Environment: {self.environment}")
         print()
         
-        # Load data sequentially
+        # Load data sequentially with proper dependency handling
         created_users = await self.load_users(test_data["users"])
         created_books = await self.load_books(test_data["books"])
         created_orders = await self.load_orders(test_data["orders"], created_users, created_books)

@@ -173,3 +173,53 @@ def get_overdue_rentals(db: Session, user_id: int = None) -> List[Order]:
         query = query.filter(Order.user_id == user_id)
     
     return query.order_by(Order.rental_end_date).all()
+
+def get_all_orders(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100,
+    order_type: Optional[OrderType] = None,
+    status: Optional[OrderStatus] = None
+) -> Tuple[List[Order], int]:
+    """Get all orders across all users (admin only)."""
+    query = db.query(Order)
+    
+    # Apply filters
+    if order_type:
+        query = query.filter(Order.order_type == order_type)
+    
+    if status:
+        query = query.filter(Order.status == status)
+    
+    # Get total count before pagination
+    total = query.count()
+    
+    # Apply pagination and ordering
+    orders = query.order_by(desc(Order.created_at)).offset(skip).limit(limit).all()
+    
+    return orders, total
+
+def get_admin_summary(db: Session) -> dict:
+    """Get admin summary with global statistics."""
+    all_orders = db.query(Order).all()
+    
+    total_orders = len(all_orders)
+    total_purchases = len([o for o in all_orders if o.order_type == OrderType.BUY])
+    total_rentals = len([o for o in all_orders if o.order_type == OrderType.RENT])
+    total_revenue = sum(o.total_amount for o in all_orders if o.status != OrderStatus.CANCELLED)
+    active_rentals = len([
+        o for o in all_orders 
+        if o.order_type == OrderType.RENT 
+        and o.status in [OrderStatus.CONFIRMED, OrderStatus.COMPLETED]
+        and o.rental_returned_date is None
+    ])
+    overdue_rentals = len(get_overdue_rentals(db))
+    
+    return {
+        "total_orders": total_orders,
+        "total_purchases": total_purchases,
+        "total_rentals": total_rentals,
+        "total_revenue": total_revenue,
+        "active_rentals": active_rentals,
+        "overdue_rentals": overdue_rentals
+    }

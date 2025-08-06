@@ -1,15 +1,14 @@
 {
   "environment": "kubernetes",
-  "loaded_at": 23513.427461302,
-  "users_created": 48,
+  "loaded_at": 16856.446236335,
+  "users_created": 0,
   "books_created": 0,
   "orders_created": 0,
   "verification": {
     "user_service": true,
-    "orders_accessible": true,
     "catalog_service": true,
     "order_service": true
   },
   "admin_token_set": false,
-  "user_tokens_count": 1
+  "user_tokens_count": 0
 }

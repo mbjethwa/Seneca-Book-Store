@@ -119,7 +119,7 @@ async def register_user(user: schemas.UserCreate, db: Session = Depends(get_db))
     
     return new_user
 
-@app.post("/login", response_model=schemas.Token)
+@app.post("/login", response_model=schemas.LoginResponse)
 async def login_user(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
     """Login user and return JWT token."""
     user = crud.authenticate_user(db, user_credentials.email, user_credentials.password)
@@ -140,7 +140,11 @@ async def login_user(user_credentials: schemas.UserLogin, db: Session = Depends(
     access_token = create_access_token(
         data={"sub": user.email}, expires_delta=access_token_expires
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer",
+        "user": schemas.UserResponse.model_validate(user)
+    }
 
 @app.get("/me", response_model=schemas.UserResponse)
 async def read_users_me(current_user: schemas.UserResponse = Depends(get_current_user)):

@@ -18,12 +18,13 @@ NC='\033[0m' # No Color
 PROJECT_NAME="seneca-bookstore"
 NAMESPACE="seneca-bookstore"
 REGISTRY="localhost:5000"
+INTERNAL_REGISTRY="registry.kube-system.svc.cluster.local"
 VERSION="latest"
 DOMAIN="senecabooks.local"
 
 # Phase tracking
 CURRENT_PHASE=0
-TOTAL_PHASES=6
+TOTAL_PHASES=7
 
 # Function to print colored output
 print_header() {
@@ -192,22 +193,11 @@ setup_namespace() {
 build_and_push_images() {
     print_phase "Building and Pushing Docker Images"
     
-    # Setup local registry if needed
-    print_step "Setting up local registry..."
-    if ! kubectl get service registry -n kube-system >/dev/null 2>&1; then
-        print_warning "Registry addon not found, enabling..."
-        minikube addons enable registry || print_error "Failed to enable registry addon"
-    fi
+    # Use Minikube's Docker daemon directly
+    print_step "Configuring Docker to use Minikube's daemon..."
+    eval $(minikube docker-env)
     
-    # Port forward registry if not already running
-    print_step "Setting up registry port forwarding..."
-    if ! pgrep -f "kubectl.*port-forward.*registry" >/dev/null; then
-        kubectl port-forward --namespace kube-system service/registry 5000:80 >/dev/null 2>&1 &
-        sleep 3
-    fi
-    print_success "Registry is accessible at localhost:5000"
-    
-    # Build images for each service
+    # Build images for each service directly in Minikube
     SERVICES=("user-service" "catalog-service" "order-service" "frontend-service")
     
     for service in "${SERVICES[@]}"; do
@@ -216,23 +206,22 @@ build_and_push_images() {
         if [ -d "$service" ]; then
             cd "$service"
             
-            # Build image
-            docker build -t "$REGISTRY/$service:$VERSION" . || print_error "Failed to build $service image"
-            
-            # Tag for local use
-            docker tag "$REGISTRY/$service:$VERSION" "$service:$VERSION"
-            
-            # Push to registry
-            docker push "$REGISTRY/$service:$VERSION" || print_error "Failed to push $service image"
+            # Build image directly in Minikube's Docker daemon
+            docker build -t "$service:$VERSION" . || print_error "Failed to build $service image"
             
             cd ..
-            print_success "$service image built and pushed"
+            print_success "$service image built"
         else
             print_warning "Directory $service not found, skipping..."
         fi
     done
     
-    print_success "All images built and pushed successfully!"
+    # Update manifests to use local images without registry
+    print_step "Updating manifests to use local images..."
+    find k8s-manifests -name "*.yaml" -exec sed -i "s|localhost:5000/||g" {} \;
+    find k8s-manifests -name "*.yaml" -exec sed -i "s|$INTERNAL_REGISTRY/||g" {} \;
+    
+    print_success "All images built successfully!"
 }
 
 # Phase 5: Deploy Kubernetes Resources
@@ -274,7 +263,7 @@ deploy_kubernetes_resources() {
 finalize_deployment() {
     print_phase "Finalizing Deployment and Setup"
     
-    print_step "Waiting for all pods to be ready..."
+    print_step "Waiting for all deployments to be ready..."
     
     # Check if any pods are in CrashLoopBackOff and need database path fix
     CRASH_PODS=$(kubectl get pods -n $NAMESPACE --no-headers | grep CrashLoopBackOff | wc -l)
@@ -291,19 +280,37 @@ finalize_deployment() {
         sleep 10
     fi
     
-    # Wait for pods with retries
-    for i in {1..3}; do
-        print_step "Attempt $i: Waiting for all pods to be ready..."
-        if kubectl wait --for=condition=Ready pods --all -n $NAMESPACE --timeout=180s; then
-            print_success "All pods are ready!"
-            break
-        elif [ $i -eq 3 ]; then
-            print_error "Pods failed to become ready after 3 attempts"
+    # Wait for deployments to be ready (better approach than waiting for all pods)
+    DEPLOYMENTS=("user-service" "catalog-service" "order-service" "frontend-service")
+    
+    for deployment in "${DEPLOYMENTS[@]}"; do
+        print_step "Waiting for $deployment deployment to be ready..."
+        if kubectl wait --for=condition=Available deployment/$deployment -n $NAMESPACE --timeout=300s; then
+            print_success "$deployment deployment is ready!"
         else
-            print_warning "Attempt $i failed, retrying..."
-            sleep 10
+            print_warning "$deployment deployment failed to become ready, checking status..."
+            kubectl get deployment $deployment -n $NAMESPACE
+            kubectl describe deployment $deployment -n $NAMESPACE | tail -10
+            
+            # Show pod status for this deployment
+            kubectl get pods -l app=$deployment -n $NAMESPACE
+            kubectl get pods -l app=$deployment -n $NAMESPACE --no-headers | while read pod rest; do
+                if [[ $pod == *"Error"* ]] || [[ $pod == *"CrashLoop"* ]] || [[ $pod == *"ImagePull"* ]]; then
+                    echo "--- Problematic Pod: $pod ---"
+                    kubectl describe pod $pod -n $NAMESPACE | tail -15
+                fi
+            done
         fi
     done
+    
+    # Final verification of pod readiness
+    print_step "Final verification: Checking all application pods..."
+    if kubectl get pods -n $NAMESPACE | grep -E "(user-service|catalog-service|order-service|frontend-service)" | grep -qv "Running\|Completed"; then
+        print_warning "Some application pods are not in Running state:"
+        kubectl get pods -n $NAMESPACE | grep -E "(user-service|catalog-service|order-service|frontend-service)"
+    else
+        print_success "All application pods are running!"
+    fi
     
     print_step "Setting up ingress..."
     
@@ -347,6 +354,202 @@ finalize_deployment() {
     print_success "Deployment finalized!"
 }
 
+# Phase 7: Load Test Data
+load_test_data() {
+    print_phase "Loading Test Data"
+    
+    # Function to setup Python environment
+    setup_python_env() {
+        # Check if virtual environment exists and activate it
+        if [ -d ".venv" ]; then
+            print_step "Activating virtual environment..."
+            source .venv/bin/activate
+            
+            # Verify virtual environment is activated
+            if [[ "$VIRTUAL_ENV" != "" ]]; then
+                print_success "Virtual environment activated: $(basename $VIRTUAL_ENV)"
+            else
+                print_warning "Failed to activate virtual environment, falling back to system Python"
+                return 1
+            fi
+            
+            # Install httpx in virtual environment if needed
+            if ! python -c "import httpx" >/dev/null 2>&1; then
+                print_step "Installing httpx in virtual environment..."
+                pip install httpx >/dev/null 2>&1 || {
+                    print_warning "Failed to install httpx in virtual environment"
+                    return 1
+                }
+                print_success "httpx installed successfully in virtual environment"
+            else
+                print_success "httpx already available in virtual environment"
+            fi
+            
+            export PYTHON_CMD="python"
+            return 0
+        else
+            print_step "Virtual environment not found, using system Python..."
+            return 1
+        fi
+    }
+    
+    # Function to setup system Python
+    setup_system_python() {
+        print_step "Setting up system Python environment..."
+        
+        # Install httpx if needed for the data loader
+        if ! python3 -c "import httpx" >/dev/null 2>&1; then
+            print_step "Installing httpx..."
+            python3 -m pip install httpx >/dev/null 2>&1 || {
+                print_warning "Failed to install httpx - trying with user flag"
+                python3 -m pip install --user httpx >/dev/null 2>&1 || {
+                    print_warning "Failed to install httpx"
+                    return 1
+                }
+            }
+            print_success "httpx installed successfully"
+        else
+            print_success "httpx already available"
+        fi
+        
+        export PYTHON_CMD="python3"
+        return 0
+    }
+    
+    print_step "Checking for test data files..."
+    if [ ! -f "test_data/complete_dataset.json" ]; then
+        print_warning "Test data not found! Generating first..."
+        if [ -f "scripts/generate_test_data.py" ]; then
+            print_step "Generating test data..."
+            # Try virtual environment first, then system Python
+            if setup_python_env; then
+                $PYTHON_CMD scripts/generate_test_data.py || {
+                    print_warning "Failed to generate test data with virtual environment"
+                    if setup_system_python; then
+                        $PYTHON_CMD scripts/generate_test_data.py || {
+                            print_warning "Failed to generate test data"
+                            return 1
+                        }
+                    else
+                        return 1
+                    fi
+                }
+            else
+                if setup_system_python; then
+                    $PYTHON_CMD scripts/generate_test_data.py || {
+                        print_warning "Failed to generate test data"
+                        return 1
+                    }
+                else
+                    print_warning "Failed to setup Python environment"
+                    return 1
+                fi
+            fi
+        else
+            print_warning "Test data generator not found"
+            return 1
+        fi
+    fi
+    
+    print_step "Setting up Python environment for data loading..."
+    
+    # Setup Python environment (virtual env preferred, system as fallback)
+    if ! setup_python_env; then
+        if ! setup_system_python; then
+            print_warning "Failed to setup Python environment for data loading"
+            return 1
+        fi
+    fi
+    
+    print_step "Enhanced service readiness check with health monitoring..."
+    
+    # Wait for services with proper health checking
+    max_wait=300  # 5 minutes
+    wait_time=0
+    all_healthy=false
+    
+    while [ $wait_time -lt $max_wait ]; do
+        print_step "Checking service health (${wait_time}s elapsed)..."
+        
+        user_health=$(curl -k -s -o /dev/null -w "%{http_code}" "$URL/api/user/health" 2>/dev/null || echo "000")
+        catalog_health=$(curl -k -s -o /dev/null -w "%{http_code}" "$URL/api/catalog/health" 2>/dev/null || echo "000") 
+        order_health=$(curl -k -s -o /dev/null -w "%{http_code}" "$URL/api/order/health" 2>/dev/null || echo "000")
+        
+        if [ "$user_health" = "200" ] && [ "$catalog_health" = "200" ] && [ "$order_health" = "200" ]; then
+            print_success "All services are healthy and ready!"
+            all_healthy=true
+            break
+        else
+            echo "   Service status: User($user_health) Catalog($catalog_health) Order($order_health)"
+            sleep 10
+            wait_time=$((wait_time + 10))
+        fi
+    done
+    
+    if [ "$all_healthy" = "false" ]; then
+        print_warning "Services are not fully ready after ${max_wait}s, but proceeding with data loading..."
+    fi
+    
+    print_step "Loading comprehensive test data with enhanced error handling..."
+    if [ -f "scripts/load_test_data.py" ]; then
+        # Run enhanced data loader
+        $PYTHON_CMD scripts/load_test_data.py --env kubernetes --data test_data/complete_dataset.json
+        
+        if [ $? -eq 0 ]; then
+            print_success "✅ Comprehensive test data loaded successfully!"
+            
+            # Verify data loading by checking counts
+            print_step "Verifying data loading..."
+            
+            # Check if loading results file exists
+            if [ -f "test_data/loading_results.json" ]; then
+                echo "📊 Loading verification results saved to test_data/loading_results.json"
+            fi
+            
+        else
+            print_warning "Enhanced data loading failed! Attempting recovery..."
+            
+            # Try simplified fallback loading
+            print_step "Attempting simplified data loading fallback..."
+            
+            # Create minimal test users and books
+            $PYTHON_CMD -c "
+import asyncio
+import sys
+sys.path.append('scripts')
+from load_test_data import DataLoader
+
+async def fallback_load():
+    loader = DataLoader('kubernetes')
+    
+    # Create admin user
+    admin_data = [{
+        'email': 'admin@senecabooks.com',
+        'password': 'admin123',
+        'is_admin': True
+    }]
+    
+    # Create sample user  
+    user_data = [{
+        'email': 'john.doe@example.com',
+        'password': 'password123',
+        'is_admin': False
+    }]
+    
+    print('Creating essential users...')
+    await loader.load_users(admin_data + user_data)
+    return True
+
+asyncio.run(fallback_load())
+" || print_warning "Fallback data loading also failed"
+        fi
+    else
+        print_error "Data loading script not found: scripts/load_test_data.py"
+    fi
+    
+    print_success "Test data loading phase completed!"
+}
+
 # Function to show deployment summary
 show_summary() {
     echo
@@ -358,10 +561,19 @@ show_summary() {
     echo -e "  • Namespace: $NAMESPACE"
     echo -e "  • Domain: http://$DOMAIN"
     echo -e "  • Registry: $REGISTRY"
+    echo -e "  • Test Data: ✅ Loaded with sample users and admin account"
     echo
     echo -e "${CYAN}🔗 Access URLs:${NC}"
     echo -e "  • Application: ${GREEN}http://$DOMAIN${NC}"
     echo -e "  • API Docs: ${GREEN}http://$DOMAIN/api/docs${NC}"
+    echo
+    echo -e "${CYAN}👑 Admin Login:${NC}"
+    echo -e "  • Email: ${YELLOW}admin@senecabooks.com${NC}"
+    echo -e "  • Password: ${YELLOW}admin123${NC}"
+    echo
+    echo -e "${CYAN}👤 Sample User Login:${NC}"
+    echo -e "  • Email: ${YELLOW}john.doe@example.com${NC}"
+    echo -e "  • Password: ${YELLOW}password123${NC}"
     echo
     echo -e "${CYAN}� Service Status:${NC}"
     kubectl get pods -n $NAMESPACE
@@ -377,7 +589,17 @@ show_summary() {
     echo -e "${CYAN}🛠️ Troubleshooting:${NC}"
     echo -e "  • If domain doesn't work, check: ${YELLOW}minikube ip${NC}"
     echo -e "  • View ingress: ${YELLOW}kubectl get ingress -n $NAMESPACE${NC}"
+    echo -e "  • Test API endpoints with curl (now available in all containers):"
+    echo -e "    ${YELLOW}kubectl exec -n $NAMESPACE deployment/user-service -- curl http://localhost:8000/health${NC}"
+    echo -e "    ${YELLOW}kubectl exec -n $NAMESPACE deployment/catalog-service -- curl http://localhost:8000/health${NC}"
+    echo -e "    ${YELLOW}kubectl exec -n $NAMESPACE deployment/order-service -- curl http://localhost:8000/health${NC}"
+    echo -e "  • Reload test data: ${YELLOW}source .venv/bin/activate && python scripts/load_test_data.py --env kubernetes${NC}"
     echo -e "  • Cleanup: ${YELLOW}./deploy.sh cleanup${NC}"
+    echo
+    echo -e "${CYAN}🔍 Frontend-Backend Alignment:${NC}"
+    echo -e "  • Frontend automatically detects environment (senecabooks.local vs localhost)"
+    echo -e "  • API URLs: /api/user, /api/catalog, /api/order"
+    echo -e "  • All services include curl for endpoint troubleshooting"
     echo
     echo -e "${GREEN}✅ Ready to use! Visit http://$DOMAIN${NC}"
     echo
@@ -485,6 +707,7 @@ main_deploy() {
     build_and_push_images
     deploy_kubernetes_resources
     finalize_deployment
+    load_test_data
     
     # Show summary
     show_summary

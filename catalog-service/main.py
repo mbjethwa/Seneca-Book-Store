@@ -92,7 +92,7 @@ async def health():
 @app.get("/metrics")
 async def get_metrics():
     """Expose Prometheus metrics."""
-    return PlainTextResponse(metrics.generate_metrics())
+    return metrics.get_metrics()
 
 # =============================================================================
 # EXTERNAL BOOK DATA ENDPOINTS (Open Library API Integration)

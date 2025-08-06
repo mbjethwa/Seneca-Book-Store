@@ -21,6 +21,9 @@ data:
   # Application settings
   ENVIRONMENT: "production"
   LOG_LEVEL: "INFO"
+  
+  # Admin configuration
+  ADMIN_EMAILS: "admin@seneca.ca,admin@example.com,admin@senecabooks.com"
 ---
 apiVersion: v1
 kind: Secret
