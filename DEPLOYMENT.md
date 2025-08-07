@@ -4,13 +4,66 @@ This comprehensive guide covers all deployment options for the Seneca Book Store
 
 ## 📋 Table of Contents
 1. [Prerequisites](#prerequisites)
-2. [Quick Start](#quick-start)
-3. [Unified Deployment Script](#unified-deployment-script)
-4. [Kubernetes Deployment (Production)](#kubernetes-deployment-production)
-5. [Security Features](#security-features)
-6. [Docker Deployment (Development)](#docker-deployment-development)
-7. [Configuration Management](#configuration-management)
-8. [Troubleshooting](#troubleshooting)
+2. [Security Configuration](#security-configuration)
+3. [Quick Start](#quick-start)
+4. [Unified Deployment Script](#unified-deployment-script)
+5. [Kubernetes Deployment (Production)](#kubernetes-deployment-production)
+6. [Security Features](#security-features)
+7. [Docker Deployment (Development)](#docker-deployment-development)
+8. [Configuration Management](#configuration-management)
+9. [Troubleshooting](#troubleshooting)
+
+## 🔒 Security Configuration
+
+### Pre-Deployment Security Setup
+
+Before deploying to any environment, ensure you have proper security configuration:
+
+#### 1. Environment Variables Setup
+```bash
+# Copy the example environment file
+cp .env.example .env
+
+# Generate a secure SECRET_KEY
+SECRET_KEY=$(openssl rand -base64 32)
+echo "SECRET_KEY=$SECRET_KEY" >> .env
+
+# Generate secure Grafana password
+GRAFANA_PASSWORD=$(openssl rand -base64 16)
+echo "GRAFANA_ADMIN_PASSWORD=$GRAFANA_PASSWORD" >> .env
+```
+
+#### 2. Secure Test Credentials
+```bash
+# Never use hardcoded passwords - generate secure credentials
+python scripts/generate_secure_credentials.py
+
+# This creates test_credentials.json with secure random passwords
+# Use these credentials for testing instead of hardcoded values
+```
+
+#### 3. Production Security Checklist
+- [ ] **SECRET_KEY**: Generate and securely store a cryptographic key
+- [ ] **Database**: Use PostgreSQL with encrypted connections in production
+- [ ] **TLS Certificates**: Ensure valid certificates for HTTPS
+- [ ] **Network Security**: Review and apply network policies
+- [ ] **Access Control**: Configure proper RBAC permissions
+- [ ] **Monitoring**: Enable security monitoring and alerting
+- [ ] **Backups**: Set up encrypted database backups
+
+#### 4. Security Best Practices
+```bash
+# Kubernetes Secret Management
+kubectl create secret generic app-secrets \
+  --from-literal=SECRET_KEY="$SECRET_KEY" \
+  --from-literal=DATABASE_URL="$DATABASE_URL" \
+  --namespace=seneca-bookstore
+
+# Verify secrets are properly configured
+kubectl get secrets -n seneca-bookstore
+```
+
+**⚠️ IMPORTANT**: Never commit `.env` files or credentials to version control!
 
 ## 🛠️ Prerequisites
 

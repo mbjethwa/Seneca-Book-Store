@@ -1,3 +1,36 @@
+# Environment Variables and Secrets
+.env
+.env.local
+.env.production
+.env.development
+*.key
+*.pem
+*.crt
+*.cert
+secrets.yaml
+secrets/
+test_credentials.json
+**/test_credentials.json
+
+# Security and sensitive files
+*.log
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Backup directories
+backups/
+*.backup
+*.bak
+
+# Test results and temporary files
+test_results/
+tmp/
+temp/
+.tmp/
+.temp/
+
 # Dependencies
 node_modules/
 */node_modules/

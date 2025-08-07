@@ -1,6 +1,34 @@
-# 📊 Seneca Book Store - Streamlined Test Data & System Guide
+# 📊 Seneca Book Store - Secure Test Data & System Guide
 
-This document provides comprehensive information about the enhanced test data system, application access, sample credentials, API routes, and system capabilities for the Seneca Book Store project.
+This document provides comprehensive information about the **secure** test data system, application access, sample credentials, API routes, and system capabilities for the Seneca Book Store project.
+
+## 🔒 Security Notice
+
+**⚠️ IMPORTANT**: This project implements secure practices for test data management:
+
+### 🛡️ Secure Credential Management
+- **No Hardcoded Passwords**: All test credentials are generated securely
+- **Random Password Generation**: Uses cryptographically secure random generators
+- **Environment-Based Configuration**: Credentials stored in secure configuration files
+- **Production Safety**: Test credentials are isolated from production environments
+
+### 🔑 Generating Secure Test Credentials
+```bash
+# Generate secure test credentials (required before deployment)
+python scripts/generate_secure_credentials.py
+
+# This creates:
+# - test_credentials.json with secure random passwords
+# - Proper file permissions (owner read/write only)
+# - Cryptographically secure password generation
+```
+
+### 📋 Security Best Practices
+- ✅ **Never commit credentials to version control**
+- ✅ **Use environment variables for sensitive configuration**
+- ✅ **Generate unique passwords for each environment**
+- ✅ **Rotate test credentials regularly**
+- ✅ **Monitor access and authentication attempts**
 
 ## 🚀 Enhanced Data Loading System
 

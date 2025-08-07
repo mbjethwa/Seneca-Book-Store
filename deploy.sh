@@ -143,6 +143,20 @@ setup_minikube() {
         print_success "Minikube started successfully!"
     fi
     
+    # Ensure ingress addon is enabled (regardless of whether minikube was already running)
+    print_step "Ensuring ingress addon is enabled..."
+    if ! minikube addons list | grep -q "ingress.*enabled"; then
+        print_step "Enabling ingress addon..."
+        minikube addons enable ingress || print_error "Failed to enable ingress addon"
+        print_success "Ingress addon enabled"
+        
+        # Wait for ingress controller to be deployed
+        print_step "Waiting for ingress controller to be deployed..."
+        sleep 30
+    else
+        print_success "Ingress addon is already enabled"
+    fi
+    
     # Wait for cluster to be ready
     print_step "Waiting for cluster to be ready..."
     kubectl wait --for=condition=Ready nodes --all --timeout=300s || print_error "Cluster failed to become ready"
@@ -330,10 +344,27 @@ finalize_deployment() {
     
     # Check if ingress controller pods are ready
     print_step "Checking ingress controller status..."
-    kubectl wait --namespace ingress-nginx \
-        --for=condition=ready pod \
-        --selector=app.kubernetes.io/component=controller \
-        --timeout=90s || print_warning "Ingress controller may not be fully ready"
+    
+    # First, wait for ingress-nginx namespace to exist
+    timeout=30
+    while [ $timeout -gt 0 ]; do
+        if kubectl get namespace ingress-nginx >/dev/null 2>&1; then
+            break
+        fi
+        echo "   Waiting for ingress-nginx namespace... (${timeout}s remaining)"
+        sleep 5
+        timeout=$((timeout - 5))
+    done
+    
+    if [ $timeout -le 0 ]; then
+        print_warning "Ingress-nginx namespace not found, ingress may not be fully ready"
+    else
+        # Wait for ingress controller pods
+        kubectl wait --namespace ingress-nginx \
+            --for=condition=ready pod \
+            --selector=app.kubernetes.io/component=controller \
+            --timeout=120s || print_warning "Ingress controller may not be fully ready"
+    fi
     
     # Additional wait for ingress to process rules
     sleep 15

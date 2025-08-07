@@ -4,7 +4,15 @@ from datetime import datetime, timedelta
 import os
 
 # Security configuration
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
+from passlib.context import CryptContext
+from jose import JWTError, jwt
+from datetime import datetime, timedelta
+import os
+import secrets
+
+# Generate a secure secret key if not provided in environment
+DEFAULT_SECRET = secrets.token_urlsafe(32)
+SECRET_KEY = os.getenv("SECRET_KEY", DEFAULT_SECRET)
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 

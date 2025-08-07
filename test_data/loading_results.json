@@ -1,12 +1,12 @@
 {
   "environment": "kubernetes",
-  "loaded_at": 15073.660983951,
+  "loaded_at": 737.068639483,
   "users_created": 0,
   "books_created": 0,
   "orders_created": 120,
   "verification": {
     "user_service": true,
-    "books_count": 350,
+    "books_count": 200,
     "orders_accessible": true,
     "catalog_service": true,
     "order_service": true

@@ -7,7 +7,7 @@ services:
       - "8001:8000"
     environment:
       - PORT=8000
-      - SECRET_KEY=your-super-secret-jwt-key-change-in-production-please
+      - SECRET_KEY=${SECRET_KEY:-$(openssl rand -base64 32)}
       - DATABASE_URL=sqlite:///./users.db
       - ACCESS_TOKEN_EXPIRE_MINUTES=60
     healthcheck:

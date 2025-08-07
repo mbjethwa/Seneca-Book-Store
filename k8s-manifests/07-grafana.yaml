@@ -1,4 +1,18 @@
 ---
+# Grafana Secret for credentials
+apiVersion: v1
+kind: Secret
+metadata:
+  name: grafana-secret
+  namespace: seneca-bookstore
+  labels:
+    app: grafana
+    component: monitoring
+type: Opaque
+stringData:
+  admin-password: "$(openssl rand -base64 32 | tr -d '=+/' | cut -c1-25)"
+
+---
 # Grafana ConfigMap for dashboards
 apiVersion: v1
 kind: ConfigMap
@@ -143,7 +157,10 @@ spec:
           name: http
         env:
         - name: GF_SECURITY_ADMIN_PASSWORD
-          value: "admin123"
+          valueFrom:
+            secretKeyRef:
+              name: grafana-secret
+              key: admin-password
         - name: GF_INSTALL_PLUGINS
           value: "grafana-piechart-panel,grafana-worldmap-panel"
         - name: GF_SERVER_ROOT_URL

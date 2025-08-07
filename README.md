@@ -197,9 +197,6 @@ open https://senecabooks.local
 git clone <repository-url>
 cd "Seneca Book Store"
 
-# Deploy with Docker Compose only
-./deploy.sh --docker deploy
-
 # Access the application
 open http://localhost:3000
 ```
@@ -222,6 +219,52 @@ cd "Seneca Book Store"
 - **Development**: http://localhost:3000
 - **New Feature**: Access the **Discover** page to browse millions of books from Open Library!
 
+## 🔒 Security & Best Practices
+
+Seneca Book Store is built with **security-first architecture** and follows industry best practices:
+
+### 🛡️ Security Features
+- **🔐 JWT Authentication**: Secure token-based authentication with cryptographically secure SECRET_KEY
+- **🔑 Password Security**: bcrypt hashing with salt for all user passwords
+- **🚫 Zero-Trust Network**: Kubernetes network policies with explicit allow rules only
+- **🔒 RBAC**: Role-based access control with least-privilege principles
+- **🌐 TLS/HTTPS**: End-to-end encryption for all communications
+- **📊 Audit Logging**: Comprehensive logging of all user actions and API calls
+- **🛠️ Secret Management**: Kubernetes Secrets for sensitive configuration
+- **🚨 Security Monitoring**: Prometheus metrics for security events
+
+### 🔧 Environment Security
+```bash
+# Generate secure SECRET_KEY
+openssl rand -base64 32
+
+# Example secure environment configuration
+SECRET_KEY=<generated-secure-key>
+DATABASE_URL=postgresql://user:pass@host/db  # Use PostgreSQL in production
+ACCESS_TOKEN_EXPIRE_MINUTES=60
+```
+
+### 📋 Security Checklist
+- ✅ **Secrets Management**: All sensitive data stored in Kubernetes Secrets or environment variables
+- ✅ **Input Validation**: Comprehensive validation and sanitization of all user inputs
+- ✅ **SQL Injection Prevention**: Parameterized queries and ORM usage
+- ✅ **XSS Protection**: Output encoding and secure headers
+- ✅ **Resource Limits**: CPU and memory limits to prevent DoS attacks
+- ✅ **Error Handling**: Secure error messages without information disclosure
+- ✅ **Dependency Scanning**: Regular security updates and vulnerability scanning
+
+### 🚨 Security Testing
+```bash
+# Generate secure test credentials (never use hardcoded passwords)
+python scripts/generate_secure_credentials.py
+
+# Run security audit
+pip-audit  # Python dependencies
+npm audit  # Node.js dependencies
+```
+
+For detailed security information, see [SECURITY.md](SECURITY.md).
+
 ## 📊 Test Data & Sample Accounts
 
 The Seneca Book Store comes with comprehensive test data to demonstrate all features. **Test data is automatically loaded during deployment**, but you can also manage it manually.
@@ -237,17 +280,26 @@ The Seneca Book Store comes with comprehensive test data to demonstrate all feat
 ```
 
 ### 👑 Pre-configured Admin Accounts
+**⚠️ IMPORTANT**: For security, use the secure credential generator in production:
+
+```bash
+# Generate secure test credentials
+python scripts/generate_secure_credentials.py
+```
+
+**Development Test Accounts** (change in production):
 | Email | Password | Access Level |
 |-------|----------|--------------|
-| `admin@senecabooks.com` | `admin123` | Full admin access |
-| `librarian@senecabooks.com` | `librarian456` | Full admin access |
+| `admin@senecabooks.com` | `[Generated]` | Full admin access |
+| `librarian@senecabooks.com` | `[Generated]` | Full admin access |
 
 ### 👤 Sample User Accounts
+**Development Test Accounts** (change in production):
 | Email | Password | Profile |
 |-------|----------|---------|
-| `john.doe@example.com` | `password123` | Tech enthusiast |
-| `jane.smith@example.com` | `password456` | Literature lover |
-| `alice.johnson@example.com` | `password789` | Business professional |
+| `john.doe@example.com` | `[Generated]` | Tech enthusiast |
+| `jane.smith@example.com` | `[Generated]` | Literature lover |
+| `alice.johnson@example.com` | `[Generated]` | Business professional |
 
 ### 📚 Sample Catalog (48 Books)
 - **💻 Programming & Technology** (18 books): Clean Code, Design Patterns, JavaScript guides...
