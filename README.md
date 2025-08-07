@@ -1,171 +1,323 @@
-# 📚 Seneca Book Store - Complete Microservices Application
+# 📚 Seneca Book Store - Modern Microservices Platform
 
-A modern, full-stack microservices application for managing a book store with authentication, catalog management, order processing, and a beautiful React frontend.
+A complete, production-ready microservices application for book store management with modern authentication, comprehensive admin features, and secure deployment.
 
-## 🎯 Project Overview
+## 🚀 Quick Start
 
-Seneca Book Store is a comprehensive e-commerce platform built with microservices architecture, featuring:
-- **User Authentication & Management**
-- **Book Catalog & Inventory Management**
-- **Order Processing (Buy/Rent)**
-- **Modern React Frontend with Admin Dashboard**
-- **Microservices with FastAPI**
-- **JWT Authentication**
-- **Docker & Kubernetes Deployment**
+```bash
+# One-command deployment
+./deploy.sh
+
+# Access the application
+open http://senecabooks.local
+
+# Admin Login
+Email: admin@senecabooks.com
+Password: admin123
+```
 
 ## 🏗️ Architecture
 
+**Microservices Stack:**
+- **Frontend Service** (React) - Modern UI with shopping cart & admin dashboard
+- **User Service** (FastAPI) - JWT authentication & user management  
+- **Catalog Service** (FastAPI) - Book catalog & inventory management
+- **Order Service** (FastAPI) - Order processing & rental management
+
+**Infrastructure:**
+- **Kubernetes** deployment with RBAC & network policies
+- **Docker** containerization with multi-stage builds
+- **Prometheus + Grafana** monitoring stack
+- **Ingress** with TLS and security headers
+
+## ✨ Features
+
+### 🔐 Security & Authentication
+- JWT Authentication with secure token generation
+- Role-based Access Control (Admin/User permissions)
+- RBAC & Network Policies in Kubernetes
+- Automatic Session Management with deployment version tracking
+
+### 📊 Admin Dashboard
+- Real-time Statistics (books, orders, revenue, active rentals)
+- Order Management with comprehensive tracking
+- Book Management with complete CRUD operations
+- Rental Management with overdue tracking
+- Low Stock Alerts with automated notifications
+
+### 🛒 User Experience
+- Shopping Cart with persistent session management
+- Book Catalog with search and filtering
+- External Book Discovery integration
+- Personal Dashboard with order history
+- Rental Tracking with due dates
+
+### � Monitoring & Observability
+- Prometheus metrics collection
+- Grafana dashboards with real-time visualization
+- Custom business metrics tracking
+- Health check endpoints
+- Performance monitoring
+
+## 🛠️ Development
+
+### Prerequisites
+- **Docker** & **Docker Compose**
+- **Kubernetes** (Minikube for local development)
+- **kubectl** configured
+- **Python 3.11+** (for local development)
+- **Node.js 18+** (for frontend development)
+
+### Project Structure
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  Frontend       │    │  User Service   │    │ Catalog Service │
-│  (React)        │◄──►│  (Auth & JWT)   │◄──►│ (Books & Admin) │
-│  Port: 3000     │    │  Port: 8001     │    │  Port: 8002     │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         │                       └───────────────────────┼──────┐
-         │                                               │      │
-         └─────────────────────────────────────────────┐ │      │
-                                                       ▼ ▼      ▼
-                                              ┌─────────────────┐
-                                              │  Order Service  │
-                                              │ (Buy/Rent Logic)│
-                                              │  Port: 8003     │
-                                              └─────────────────┘
+├── frontend-service/     # React.js frontend
+├── user-service/        # FastAPI authentication service
+├── catalog-service/     # FastAPI book catalog service
+├── order-service/       # FastAPI order management service
+├── k8s-manifests/       # Kubernetes deployment files
+├── scripts/             # Utility scripts
+├── test_data/           # Sample data for testing
+├── deploy.sh            # Unified deployment script
+└── README.md            # This file
 ```
 
-## ✨ Features Implemented
+### Local Development
+```bash
+# Start all services locally
+docker-compose up
 
-### Phase 0: Project Structure ✅
-- ✅ Microservices architecture with FastAPI backends
-- ✅ React frontend application
-- ✅ Docker containerization
-- ✅ Kubernetes deployment manifests
-- ✅ CI/CD deployment scripts
+# Run individual service
+cd user-service && python -m uvicorn main:app --reload
 
-### Phase 1: User Service (Authentication) ✅
-- ✅ JWT-based authentication system
-- ✅ User registration and login endpoints
-- ✅ Password hashing with bcrypt
-- ✅ Protected routes with token validation
-- ✅ SQLite database with SQLAlchemy ORM
+# Run tests
+pytest
+```
 
-### Phase 2: Catalog Service (Books & Inventory) ✅
-- ✅ Full CRUD operations for book management
-- ✅ Admin-only access with User Service integration
-- ✅ Advanced search and filtering capabilities
-- ✅ Inventory tracking with stock management
-- ✅ Both purchase and rental pricing systems
+### Production Deployment
+```bash
+# Deploy to Kubernetes
+./deploy.sh --k8s
 
-### Phase 3: Order Service (Buy or Rent) ✅
-- ✅ Complete order processing system
-- ✅ Buy or rent functionality with different pricing
-- ✅ User authentication integration
-- ✅ Real-time stock validation via Catalog Service
-- ✅ Rental management with return tracking
+# Check status
+./deploy.sh status
 
-### Phase 4: Frontend (React) ✅
-- ✅ **Modern, Responsive UI** with warm color scheme
-- ✅ **Authentication Flow** - Login/Register with JWT
-- ✅ **Book Catalog** - Browse, search, and filter books
-- ✅ **Order Management** - Buy/Rent books with real-time updates
-- ✅ **Admin Dashboard** - Complete book and order management
-- ✅ **Order History** - Track purchases and rentals
-- ✅ **Rental Returns** - Easy book return functionality
-- ✅ **Professional Design** - Google Fonts, animations, and modern UI components
+# Clean deployment
+./shutdown.sh clean
+```
 
-### Phase 5: Dockerization ✅
-- ✅ **Backend Services**: Optimized Dockerfiles with `python:3.11-slim`
-- ✅ **Frontend Service**: Multi-stage build with Node.js + Nginx
-- ✅ **Container Orchestration**: Complete Docker Compose setup
-- ✅ **Production Ready**: Health checks, proper networking, and environment configuration
+## 🔧 Configuration
 
-### Phase 6: Kubernetes Setup ✅
-- ✅ **Minikube Deployment**: Complete Kubernetes orchestration on Minikube
-- ✅ **Service Mesh**: Deployments and Services for all microservices
-- ✅ **Configuration Management**: ConfigMaps and Secrets for environment variables
-- ✅ **Persistent Storage**: PVC/PV for database persistence across restarts
-- ✅ **Ingress with TLS**: HTTPS access via `https://senecabooks.local` with cert-manager
-- ✅ **Automated Deployment**: Comprehensive scripts for deploy and shutdown
-- ✅ **Health Monitoring**: Liveness and readiness probes for all services
+### Environment Variables
+Copy `.env.example` to `.env` and configure:
+- **SECRET_KEY**: JWT secret (auto-generated if not set)
+- **DATABASE_URL**: Database connection string
+- **ENVIRONMENT**: deployment environment (dev/prod)
 
-### Phase 7: Security Operations ✅
-- ✅ **Comprehensive Logging**: All API calls logged with method, path, user, and status code
-- ✅ **RBAC (Role-Based Access Control)**: 
-  - user-service: Access to secrets and ConfigMaps
-  - catalog-service: Read-only access with limited permissions
-  - order-service: Standard service access permissions
-  - frontend-service: Minimal read-only access
-- ✅ **Network Policies**: 
-  - Default deny-all traffic policy
-  - Allow internal communication between services only
-  - Block external access except via Ingress controller
-  - Service-specific communication rules
-- ✅ **Security Headers**: JWT token validation and secure communication
-- ✅ **Service Accounts**: Dedicated service accounts for each microservice
+### Security Configuration
+- All secrets managed via Kubernetes Secrets
+- TLS/HTTPS enforced in production
+- Network policies with zero-trust model
+- RBAC with least-privilege access
 
-### Phase 8: Testing and Monitoring ✅
-- ✅ **Comprehensive Test Suite**: 
-  - pytest unit tests for authentication endpoints (/register, /login)
-  - Load testing script for high-traffic endpoints (/books, /orders)
-  - Integration tests for complete user workflows
-  - Performance validation and concurrent request handling
-- ✅ **Enterprise Monitoring Stack**: 
-  - **Prometheus**: Complete metrics collection with custom dashboards
-  - **Grafana**: Pre-configured dashboards for service health monitoring
-  - **Service Metrics**: Request duration, response status, and business metrics
-  - **Real-time Alerts**: Service health and performance alerts
-- ✅ **Production Observability**:
-  - Custom metrics for user registrations, logins, book browsing, and order creation
-  - Request/response tracking across all microservices
-  - Performance monitoring with histogram metrics
-  - Health check endpoints with monitoring integration
-- ✅ **Automated Testing Pipeline**:
-  - Unified test runner script (`test.sh`) for all test types
-  - Support for both Docker and Kubernetes deployments
-  - Comprehensive test reporting and analytics
+## 📊 Monitoring
 
-### Phase 9: External Book Data Integration ✅
-- ✅ **Open Library API Integration**: 
-  - **Massive Book Database**: Access to millions of books from Open Library
-  - **Rich Metadata**: Book covers, authors, publication info, ISBNs, and subjects
-  - **Free & Open Source**: No authentication required, completely free to use
-- ✅ **External Book Discovery**:
-  - **Advanced Search**: Search by title, author, ISBN across millions of books
-  - **Category Browsing**: Browse by popular subjects (science fiction, history, romance, etc.)
-  - **Book Import System**: Admin-only import of external books to local catalog
-  - **Cover Images**: Automatic cover image integration from Open Library
-- ✅ **Enhanced Frontend**:
-  - **Discover Page**: New dedicated interface for browsing external books
-  - **Visual Book Browser**: Rich card-based interface with covers and metadata
-  - **Smart Import Modal**: Easy-to-use import interface for admins
-  - **Subject Categories**: Quick access to popular book categories
-- ✅ **Intelligent Data Management**:
-  - **Source Tracking**: Track data origin (local vs. external)
-  - **Duplicate Prevention**: Prevent duplicate imports via ISBN checking
-  - **Flexible Pricing**: Set custom pricing for imported books
-  - **Metadata Enhancement**: Automatic population of descriptions and categories
+**Access Monitoring:**
+- **Prometheus**: http://senecabooks.local/prometheus
+- **Grafana**: http://senecabooks.local/grafana (admin/admin123)
 
-### Phase 10: Comprehensive Test Data Integration ✅
-- ✅ **Complete Test Dataset**: 
-  - **7 User Accounts**: 2 admin users, 5 regular users with realistic profiles
-  - **48 Book Catalog**: Programming, classic literature, and business books with ISBNs
-  - **75 Sample Orders**: Purchase and rental transactions across all users
-  - **Realistic Data**: Valid ISBNs, cover URLs, and comprehensive metadata
-- ✅ **Automated Data Loading**:
-  - **Test Data Generator**: Comprehensive Python script for realistic data generation
-  - **Smart Data Loader**: Async HTTP client for efficient API data loading
-  - **Environment Support**: Works with both Docker and Kubernetes deployments
-  - **Deployment Integration**: Automatic test data loading during deployment
-- ✅ **User-Friendly Management**:
-  - **Quick Start Script**: One-command data generation and loading
-  - **Comprehensive Documentation**: Complete TEST_DATA.MD with all credentials
-  - **Multiple Access Methods**: Manual scripts, deployment integration, quick start
-  - **Verification System**: Built-in data loading verification and error handling
-- ✅ **Production-Ready Demo Data**:
-  - **Sample Credentials**: Pre-configured admin and user accounts for immediate testing
-  - **Rich Book Catalog**: Three categories with realistic pricing and metadata
-  - **Order History**: Comprehensive transaction data showcasing buy/rent functionality
-  - **External Integration**: Mock data demonstrating Open Library API integration
+**Key Metrics:**
+- Request rates and response times
+- Error rates and service health
+- Business metrics (orders, registrations, etc.)
+- Resource utilization
+
+## 🧪 Testing
+
+**Included Test Data:**
+- 50 test users (5 admin, 45 regular)
+- 200 books across multiple categories
+- 120+ realistic orders and rentals
+
+**Test Coverage:**
+- Unit tests for all services
+- Integration tests for API endpoints
+- Load testing for performance validation
+- Security testing for vulnerability assessment
+
+## 🔍 Troubleshooting
+
+**Common Issues:**
+```bash
+# Check service health
+kubectl get pods -n seneca-bookstore
+
+# View service logs
+kubectl logs -f deployment/user-service -n seneca-bookstore
+
+# Test API endpoints
+curl http://senecabooks.local/api/user/health
+```
+
+**Reset Environment:**
+```bash
+./shutdown.sh clean
+./deploy.sh
+```
+
+## � Documentation
+
+- **[Deployment Guide](DEPLOYMENT.md)** - Detailed deployment instructions
+- **[Security Policy](SECURITY.md)** - Security features and best practices
+- **[Test Data Guide](TEST_DATA.MD)** - Sample data and access information
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests: `pytest`
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+---
+
+**🎯 Production Ready** | **🔒 Security Hardened** | **📈 Enterprise Monitoring** | **🚀 Kubernetes Native**
+- **Book Discovery** - internal catalog + external book search integration
+- **Order History** - purchase and rental tracking with due dates
+- **Responsive Design** - works perfectly on all devices
+- **Auto-logout Security** - session cleared on new deployments
+
+### 📈 Monitoring & Observability
+- **Prometheus Metrics** - request tracking, business metrics, performance data
+- **Grafana Dashboards** - pre-configured monitoring with alerts
+- **Health Checks** - comprehensive service monitoring
+- **Audit Logging** - complete activity tracking
+
+## 📋 System Requirements
+
+- **Docker** & **Docker Compose**
+- **Kubernetes** (Minikube for local development)
+- **kubectl** configured for your cluster
+
+## 🔧 Deployment
+
+### Local Development (Kubernetes)
+```bash
+# Deploy everything
+./deploy.sh
+
+# Check status
+./deploy.sh status
+
+# Clean shutdown
+./shutdown.sh
+```
+
+### Docker Compose (Alternative)
+```bash
+# Start all services
+docker-compose up -d
+
+# Stop all services  
+docker-compose down
+```
+
+## 🌐 Access Points
+
+| Service | URL | Purpose |
+|---------|-----|---------|
+| **Main App** | http://senecabooks.local | Complete book store interface |
+| **Admin Dashboard** | http://senecabooks.local/admin | Admin management interface |
+| **User API** | http://senecabooks.local/api/user/docs | Authentication API docs |
+| **Catalog API** | http://senecabooks.local/api/catalog/docs | Book management API docs |
+| **Order API** | http://senecabooks.local/api/order/docs | Order processing API docs |
+| **Prometheus** | http://senecabooks.local/prometheus | Metrics monitoring |
+| **Grafana** | http://senecabooks.local/grafana | Analytics dashboards |
+
+## 👤 Test Accounts
+
+### Admin Account
+- **Email:** admin@senecabooks.com
+- **Password:** admin123
+- **Access:** Full system administration
+
+### Sample User Account  
+- **Email:** john.doe@example.com
+- **Password:** password123
+- **Access:** Standard user features
+
+## 🛠️ Development
+
+### Running Tests
+```bash
+# Run all tests
+./test.sh
+
+# Individual service tests
+cd user-service && python -m pytest
+cd catalog-service && python -m pytest  
+cd order-service && python -m pytest
+```
+
+### Monitoring
+```bash
+# Check all pods
+kubectl get pods -n seneca-bookstore
+
+# View service logs
+kubectl logs -f deployment/user-service -n seneca-bookstore
+
+# Monitor resource usage
+kubectl top pods -n seneca-bookstore
+```
+
+## 🔒 Security Features
+
+- **JWT Authentication** with secure token generation
+- **RBAC** in Kubernetes with least-privilege access
+- **Network Policies** for zero-trust architecture  
+- **Session Management** with automatic logout on deployments
+- **Comprehensive Audit Logging** for all actions
+- **Security Headers** and HTTPS everywhere
+
+## 📊 Technology Stack
+
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| **Frontend** | React, Nginx | Modern responsive UI |
+| **Backend** | FastAPI, Python | Microservices APIs |
+| **Database** | SQLite, SQLAlchemy | Data persistence |  
+| **Authentication** | JWT, bcrypt | Secure user auth |
+| **Orchestration** | Kubernetes, Docker | Container management |
+| **Monitoring** | Prometheus, Grafana | Observability stack |
+| **Networking** | Ingress, NetworkPolicies | Secure routing |
+
+## 📚 Documentation
+
+- **[Deployment Guide](DEPLOYMENT.md)** - Detailed deployment instructions
+- **[Security Policy](SECURITY.md)** - Security features and comprehensive audit results
+- **[Test Data Guide](TEST_DATA.MD)** - Sample data and access information
+- **[API Documentation](http://senecabooks.local/api/docs)** - Interactive API docs
+
+## 🎯 Project Status
+
+✅ **Production Ready** - Complete microservices platform  
+✅ **Security Audited** - Comprehensive security review passed  
+✅ **Fully Tested** - Unit, integration, and load tests  
+✅ **Monitored** - Full observability with Prometheus + Grafana  
+✅ **Documented** - Complete documentation and guides
+
+---
+
+**Built with ❤️ for Seneca College**  
+*Modern microservices architecture demonstrating enterprise development practices*
+  ---
+
+**Built with ❤️ for Seneca College**  
+*Modern microservices architecture demonstrating enterprise development practices*
 
 ## 🚀 Quick Start
 

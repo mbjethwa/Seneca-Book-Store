@@ -213,6 +213,7 @@ build_and_push_images() {
     
     # Build images for each service directly in Minikube
     SERVICES=("user-service" "catalog-service" "order-service" "frontend-service")
+    DEPLOYMENT_VERSION=$(date +%s%3N)  # Timestamp in milliseconds for unique deployment tracking
     
     for service in "${SERVICES[@]}"; do
         print_step "Building $service image..."
@@ -220,8 +221,12 @@ build_and_push_images() {
         if [ -d "$service" ]; then
             cd "$service"
             
-            # Build image directly in Minikube's Docker daemon
-            docker build -t "$service:$VERSION" . || print_error "Failed to build $service image"
+            # Build image with deployment version for frontend service
+            if [ "$service" = "frontend-service" ]; then
+                docker build --build-arg DEPLOYMENT_VERSION="$DEPLOYMENT_VERSION" -t "$service:$VERSION" . || print_error "Failed to build $service image"
+            else
+                docker build -t "$service:$VERSION" . || print_error "Failed to build $service image"
+            fi
             
             cd ..
             print_success "$service image built"

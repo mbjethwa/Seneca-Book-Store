@@ -1,32 +1,257 @@
 # 🚀 Deployment Guide - Seneca Book Store
 
-This comprehensive guide covers all deployment options for the Seneca Book Store microservices application, from local development to production Kubernetes deployment with enterprise-grade security using the **unified deployment script**.
+Complete deployment guide for the Seneca Book Store microservices application with unified deployment script.
 
-## 📋 Table of Contents
-1. [Prerequisites](#prerequisites)
-2. [Security Configuration](#security-configuration)
-3. [Quick Start](#quick-start)
-4. [Unified Deployment Script](#unified-deployment-script)
-5. [Kubernetes Deployment (Production)](#kubernetes-deployment-production)
-6. [Security Features](#security-features)
-7. [Docker Deployment (Development)](#docker-deployment-development)
-8. [Configuration Management](#configuration-management)
-9. [Troubleshooting](#troubleshooting)
+## 📋 Prerequisites
 
-## 🔒 Security Configuration
+### Required Tools
+- **Docker** & **Docker Compose** (latest version)
+- **Kubernetes** - Minikube (local) or managed cluster (production)
+- **kubectl** - configured for your cluster
+- **Git** - for cloning the repository
 
-### Pre-Deployment Security Setup
+### System Requirements
+- **Memory**: 8GB+ RAM recommended
+- **Disk Space**: 10GB+ available space
+- **CPU**: 4+ cores recommended
 
-Before deploying to any environment, ensure you have proper security configuration:
+## � Security Setup
 
-#### 1. Environment Variables Setup
+### Environment Configuration
 ```bash
-# Copy the example environment file
+# Copy example configuration
 cp .env.example .env
 
-# Generate a secure SECRET_KEY
+# The deployment script will auto-generate secure secrets
+# Or manually set:
 SECRET_KEY=$(openssl rand -base64 32)
 echo "SECRET_KEY=$SECRET_KEY" >> .env
+```
+
+### Kubernetes Security
+- RBAC policies automatically configured
+- Network policies with zero-trust model
+- TLS/HTTPS enforced for all communications
+- Secrets management via Kubernetes Secrets
+
+## 🚀 Quick Deployment
+
+### One-Command Deployment
+```bash
+# Deploy everything (recommended)
+./deploy.sh
+
+# Deploy to specific environment
+./deploy.sh --k8s      # Kubernetes only
+./deploy.sh --docker   # Docker Compose only
+```
+
+### Deployment Options
+```bash
+# Check deployment status
+./deploy.sh status
+
+# View detailed logs
+./deploy.sh logs
+
+# Clean deployment (reset everything)
+./shutdown.sh clean && ./deploy.sh
+```
+
+## 🔧 Environment-Specific Deployment
+
+### Local Development (Docker Compose)
+```bash
+# Start all services locally
+./deploy.sh --docker
+
+# Access application
+open http://localhost:3000
+
+# Admin credentials
+Email: admin@senecabooks.com
+Password: admin123
+```
+
+### Production (Kubernetes)
+```bash
+# Deploy to Kubernetes cluster
+./deploy.sh --k8s
+
+# Setup domain (add to /etc/hosts)
+echo "$(minikube ip) senecabooks.local" | sudo tee -a /etc/hosts
+
+# Access application
+open http://senecabooks.local
+
+# Monitoring
+open http://senecabooks.local/prometheus
+open http://senecabooks.local/grafana
+```
+
+## 📊 Monitoring & Observability
+
+### Monitoring Stack
+- **Prometheus**: Metrics collection and alerting
+- **Grafana**: Dashboards and visualization
+- **Health Checks**: All services expose `/health` endpoints
+
+### Access Monitoring
+```bash
+# Prometheus (metrics and alerts)
+open http://senecabooks.local/prometheus
+
+# Grafana (dashboards)
+open http://senecabooks.local/grafana
+# Login: admin / admin123
+```
+
+### Key Metrics Tracked
+- **HTTP Requests**: Rate, duration, error rate
+- **Business Metrics**: User registrations, book views, orders
+- **System Health**: Service status, resource usage
+- **Security Events**: Authentication attempts, failures
+
+## 🧪 Testing & Validation
+
+### Automated Testing
+```bash
+# Run comprehensive test suite
+./test.sh
+
+# Individual test categories
+./test.sh unit        # Unit tests only
+./test.sh integration # API integration tests
+./test.sh load        # Load testing
+```
+
+### Manual Validation
+```bash
+# Check all services are running
+kubectl get pods -n seneca-bookstore
+
+# Test API endpoints
+curl http://senecabooks.local/api/user/health
+curl http://senecabooks.local/api/catalog/health
+curl http://senecabooks.local/api/order/health
+
+# View service logs
+kubectl logs -f deployment/user-service -n seneca-bookstore
+```
+
+## 🔍 Troubleshooting
+
+### Common Issues
+
+**Services not starting:**
+```bash
+# Check pod status
+kubectl get pods -n seneca-bookstore
+
+# View detailed events
+kubectl describe pod <pod-name> -n seneca-bookstore
+
+# Check resource usage
+kubectl top pods -n seneca-bookstore
+```
+
+**Domain access issues:**
+```bash
+# Verify minikube IP
+minikube ip
+
+# Check ingress configuration
+kubectl get ingress -n seneca-bookstore
+
+# Test with port-forward
+kubectl port-forward service/frontend-service 3000:80 -n seneca-bookstore
+```
+
+**Database/Storage issues:**
+```bash
+# Check persistent volumes
+kubectl get pv,pvc -n seneca-bookstore
+
+# Reset storage (WARNING: destroys data)
+kubectl delete pvc --all -n seneca-bookstore
+```
+
+### Reset Environment
+```bash
+# Complete reset (removes all data)
+./shutdown.sh clean
+
+# Fresh deployment
+./deploy.sh
+
+# Verify clean state
+kubectl get all -n seneca-bookstore
+```
+
+### Performance Optimization
+```bash
+# Scale services (if needed)
+kubectl scale deployment user-service --replicas=3 -n seneca-bookstore
+
+# Monitor resource usage
+kubectl top nodes
+kubectl top pods -n seneca-bookstore
+
+# View resource limits
+kubectl describe deployment user-service -n seneca-bookstore
+```
+
+## 🔄 Updates & Maintenance
+
+### Updating the Application
+```bash
+# Pull latest changes
+git pull origin main
+
+# Redeploy with updates
+./deploy.sh
+
+# Rolling update (zero downtime)
+kubectl rollout restart deployment/user-service -n seneca-bookstore
+```
+
+### Backup & Recovery
+```bash
+# Backup persistent data
+kubectl get pv -o yaml > backup-volumes.yaml
+
+# Export configuration
+kubectl get configmap,secret -n seneca-bookstore -o yaml > backup-config.yaml
+
+# Restore from backup
+kubectl apply -f backup-volumes.yaml
+kubectl apply -f backup-config.yaml
+```
+
+## 📞 Support
+
+### Logs and Debugging
+```bash
+# View aggregated logs
+kubectl logs -l app=user-service -n seneca-bookstore --tail=100
+
+# Follow real-time logs
+kubectl logs -f deployment/user-service -n seneca-bookstore
+
+# Check system events
+kubectl get events -n seneca-bookstore --sort-by='.lastTimestamp'
+```
+
+### Health Checks
+All services provide health endpoints:
+- **Frontend**: http://senecabooks.local/
+- **User Service**: http://senecabooks.local/api/user/health
+- **Catalog Service**: http://senecabooks.local/api/catalog/health
+- **Order Service**: http://senecabooks.local/api/order/health
+
+---
+
+**🎯 Enterprise Ready** | **🔒 Security Hardened** | **📈 Production Monitoring** | **🚀 One-Command Deploy**
 
 # Generate secure Grafana password
 GRAFANA_PASSWORD=$(openssl rand -base64 16)
@@ -490,14 +715,14 @@ kubectl port-forward deployment/user-service 8001:8000 -n seneca-bookstore
 
 #### Performance Testing
 ```bash
-# Run load tests with custom parameters
-python scripts/load_test.py --requests 100 --users 10 --duration 30
+# Load test data into all services
+python scripts/load_test_data.py
 
 # Quick performance check
 ./test.sh --quick
 
-# Comprehensive load testing
-python scripts/load_test.py --requests 500 --users 25 --duration 60
+# Generate additional test data for load testing
+python scripts/generate_test_data.py --output-file test_data_large.json --count 1000
 ```
 
 ### Test Environment Setup

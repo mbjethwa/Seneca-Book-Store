@@ -1,227 +1,270 @@
-# 📊 Seneca Book Store - Secure Test Data & System Guide
+# 📊 Test Data & Access Guide - Seneca Book Store
 
-This document provides comprehensive information about the **secure** test data system, application access, sample credentials, API routes, and system capabilities for the Seneca Book Store project.
+Quick reference for accessing the application and understanding the test data system.
 
-## 🔒 Security Notice
+## 🚀 Quick Access
 
-**⚠️ IMPORTANT**: This project implements secure practices for test data management:
+### 🌐 Application URLs
+- **Main Application**: http://senecabooks.local
+- **Admin Dashboard**: http://senecabooks.local/admin  
+- **User Dashboard**: http://senecabooks.local/dashboard
 
-### 🛡️ Secure Credential Management
-- **No Hardcoded Passwords**: All test credentials are generated securely
-- **Random Password Generation**: Uses cryptographically secure random generators
-- **Environment-Based Configuration**: Credentials stored in secure configuration files
-- **Production Safety**: Test credentials are isolated from production environments
+### 🔐 Login Credentials
 
-### 🔑 Generating Secure Test Credentials
-```bash
-# Generate secure test credentials (required before deployment)
-python scripts/generate_secure_credentials.py
-
-# This creates:
-# - test_credentials.json with secure random passwords
-# - Proper file permissions (owner read/write only)
-# - Cryptographically secure password generation
-```
-
-### 📋 Security Best Practices
-- ✅ **Never commit credentials to version control**
-- ✅ **Use environment variables for sensitive configuration**
-- ✅ **Generate unique passwords for each environment**
-- ✅ **Rotate test credentials regularly**
-- ✅ **Monitor access and authentication attempts**
-
-## 🚀 Enhanced Data Loading System
-
-### 📋 Intelligent Data Loading Features
-- **Smart Stock Management**: Realistic order generation with proper stock tracking and depletion simulation
-- **Service Health Monitoring**: Automatic health checking before data loading with timeout handling
-- **Robust Error Handling**: Retry logic with realistic constraints and comprehensive fallback mechanisms
-- **Session Management**: Proper user session handling with cart persistence and authentication validation
-- **Environment Awareness**: Automatic SSL handling for Kubernetes deployment
-- **Progress Tracking**: Real-time progress updates and detailed logging with performance metrics
-- **Shopping Cart Integration**: Test data includes cart scenarios and user session management
-
-### 🛠️ Streamlined Scripts (Optimized & Clean)
-- **Primary Loader**: `scripts/load_test_data.py` - Enhanced comprehensive data loader with smart retry logic
-- **Data Generator**: `scripts/generate_test_data.py` - Intelligent test data generation with stock management
-- **Quick Setup**: `scripts/quick_start_data.sh` - Minimal setup script for development
-
-### 📊 Enhanced Loading Process
-1. **Service Health Check**: Waits up to 5 minutes for all services to be ready with exponential backoff
-2. **User Management**: Creates admin and regular users with proper authentication tokens and session validation
-3. **Book Catalog**: Loads 200 books with complete metadata, realistic pricing, and stock levels
-4. **Smart Order Generation**: Creates ~120 realistic orders with proper stock tracking and availability checks
-5. **Shopping Cart Setup**: Initializes empty carts for new user sessions with proper state management
-6. **Data Verification**: Comprehensive validation and result tracking saved to `test_data/loading_results.json`
-
-### 🎯 Realistic Data Distribution
-- **Users**: 50 total (5 admin, 45 regular users) with diverse profiles
-- **Books**: 200 books across multiple categories (Programming, Fiction, Business, etc.)
-- **Orders**: ~120 orders with realistic distribution (60% completed, balanced buy/rent ratio)
-- **Stock Management**: Intelligent stock depletion simulation with availability tracking
-- **Cart System**: Empty carts on deployment, persistent during user sessions, cleared on logout
-
-## 🌐 Application & Monitoring Access
-
-### 🏠 Main Application
-- **Frontend**: http://senecabooks.local
-- **Status**: ✅ Fully functional with enhanced UI/UX, shopping cart, and admin dashboard
-
-### 🔗 API Documentation & Testing
-- **User Service**: http://senecabooks.local/api/user/docs (with session validation)
-- **Catalog Service**: http://senecabooks.local/api/catalog/docs (includes external book search)
-- **Order Service**: http://senecabooks.local/api/order/docs (with enhanced admin endpoints)
-
-## 🎯 Enhanced Navigation & Dashboard System
-
-### 🏠 Role-Based Dashboard Access (Modernized UI)
-**Admin Users** (is_admin: true):
-- **Login Redirect**: Automatically directed to `/admin` dashboard
-- **Navigation**: Clean navbar with "Catalog", "Discover", "My Cart", "Admin Dashboard"
-- **Admin Features**: 
-  - ✅ Global order management and analytics
-  - ✅ Complete user oversight and system administration
-  - ✅ Real-time statistics and performance metrics
-  - ✅ Enhanced order formatting and status tracking
-- **Full Access**: Book management, user oversight, comprehensive order analytics
-
-**Regular Users** (is_admin: false):
-- **Login Redirect**: Automatically directed to `/dashboard` (user dashboard)
-- **Navigation**: "Catalog", "Discover", "My Cart", "Dashboard"
-- **User Features**:
-  - ✅ Personal library and reading history
-  - ✅ Shopping cart functionality with persistent state
-  - ✅ Order tracking and rental management
-  - ✅ Book discovery and external search integration
-
-### 🛒 Shopping Cart System (New Feature)
-- **Persistent Cart**: Cart items saved in localStorage during session
-- **Session Management**: Cart cleared on logout for security
-- **Real-time Updates**: Live cart count and item management
-- **Checkout Integration**: Seamless order placement and processing
-
-## 👥 Sample User Credentials
-
-### 🔑 Admin Access
+**Admin Account:**
 ```
 Email: admin@senecabooks.com
 Password: admin123
 Role: Administrator
-Features: Full system access, user management, order oversight
+Features: Full system access, order management, user oversight
 ```
 
-### 👤 Regular Users (Sample)
+**Sample User Accounts:**
 ```
 Email: john.doe@example.com
 Password: password123
-Role: Regular User
 
 Email: jane.smith@example.com  
 Password: password123
-Role: Regular User
 
 Email: alice.johnson@example.com
 Password: password123
-Role: Regular User
 ```
 
-## 📚 Sample Book Data
+## 📊 Test Data Overview
 
-### 📖 Book Categories & Examples
-- **Programming** (20 books): Clean Code, Design Patterns, Python Crash Course
-- **Fiction** (40 books): To Kill a Mockingbird, 1984, Pride and Prejudice
-- **Science Fiction** (30 books): Dune, Foundation, Neuromancer
-- **Business** (25 books): Think and Grow Rich, The Lean Startup, Good to Great
-- **Technology** (85 books): Various programming, DevOps, and tech books
+### 👥 Users (50 total)
+- **5 Admin users** with full system access
+- **45 Regular users** with standard permissions
+- All users have realistic profiles and order history
+- Secure password generation used for all accounts
 
-### 💰 Pricing Structure
-- **Programming Books**: $25-85 (buy), $4-12 (rent/day)
-- **Fiction/Classics**: $12-30 (buy), $2-6 (rent/day)
-- **Business Books**: $20-50 (buy), $3-8 (rent/day)
-- **Stock Levels**: 3-100 copies per book (realistic simulation)
+### 📚 Books (200 total)
+- **Multiple Categories**: Programming, Fiction, Business, Science, etc.
+- **Realistic Pricing**: $15-$75 for purchase, $2-$8 for rentals
+- **Stock Management**: Varied stock levels (0-50 per book)
+- **Complete Metadata**: ISBN, descriptions, authors, genres
 
-## 📊 System Performance & Monitoring
+### 📦 Orders (120+ total)
+- **Mixed Types**: ~60% purchases, ~40% rentals
+- **Realistic Distribution**: Various order statuses and amounts
+- **Rental Tracking**: Due dates, overdue alerts, return tracking
+- **Revenue Generation**: Totaling $90,000+ in test transactions
 
-### 🔍 Health Check Endpoints
-- **Frontend**: http://senecabooks.local/
-- **User Service**: http://senecabooks.local/api/user/health
-- **Catalog Service**: http://senecabooks.local/api/catalog/health
-- **Order Service**: http://senecabooks.local/api/order/health
+## 🎯 Key Features to Test
 
-### 📈 Monitoring Commands
+### 🛒 Shopping Cart System
+- **Persistent Cart**: Items saved during user session
+- **Session Management**: Cart cleared on logout for security
+- **Real-time Updates**: Live cart count and total calculation
+- **Checkout Process**: Complete order placement workflow
+
+### 📊 Admin Dashboard
+- **Real-time Statistics**: Books, orders, revenue, active rentals
+- **Order Management**: Filter, search, and track all orders
+- **Book Management**: Add, edit, delete books with stock tracking
+- **Rental Management**: Overdue tracking and due date monitoring
+- **Inventory Alerts**: Low stock notifications and management
+
+### 👤 User Dashboard  
+- **Order History**: View all purchases and rentals
+- **Active Rentals**: Track due dates and return status
+- **Personal Stats**: Purchase summary and rental activity
+- **Account Management**: Profile and preferences
+
+## � API Endpoints
+
+### User Service (Authentication)
+- **Health**: http://senecabooks.local/api/user/health
+- **Docs**: http://senecabooks.local/api/user/docs
+- **Register/Login**: JWT token-based authentication
+
+### Catalog Service (Books)
+- **Health**: http://senecabooks.local/api/catalog/health
+- **Docs**: http://senecabooks.local/api/catalog/docs
+- **Browse Books**: Search, filter, and view book details
+
+### Order Service (Orders & Rentals)
+- **Health**: http://senecabooks.local/api/order/health
+- **Docs**: http://senecabooks.local/api/order/docs
+- **Order Management**: Create, track, and manage orders
+
+## 📈 Monitoring Access
+
+### Prometheus (Metrics)
+- **URL**: http://senecabooks.local/prometheus
+- **Purpose**: Raw metrics data and alerting rules
+- **Key Metrics**: Request rates, error rates, business metrics
+
+### Grafana (Dashboards)  
+- **URL**: http://senecabooks.local/grafana
+- **Login**: admin / admin123
+- **Dashboard**: "Seneca Book Store Overview"
+- **Features**: Real-time service monitoring and business insights
+
+## 🛠️ Development Commands
+
+### Quick Deployment
 ```bash
-# Check all pods status
-kubectl get pods -n seneca-bookstore
-
-# View service logs
-kubectl logs -n seneca-bookstore deployment/user-service
-kubectl logs -n seneca-bookstore deployment/catalog-service
-kubectl logs -n seneca-bookstore deployment/order-service
-kubectl logs -n seneca-bookstore deployment/frontend-service
-
-# Check ingress status
-kubectl get ingress -n seneca-bookstore
-
-# Monitor resource usage
-kubectl top pods -n seneca-bookstore
-```
-
-## 🔧 Development & Troubleshooting
-
-### 🚀 Quick Deployment
-```bash
-# Full deployment with enhanced data
+# Full deployment with test data
 ./deploy.sh
 
 # Check deployment status
 kubectl get all -n seneca-bookstore
 
-# Access application
-open http://senecabooks.local
+# View service logs
+kubectl logs -f deployment/user-service -n seneca-bookstore
 ```
 
-### 🐛 Common Issues & Solutions
-
-**Issue**: Orders failing to load in test data
-**Solution**: The enhanced system now uses intelligent stock management to prevent over-ordering
-
-**Issue**: Admin dashboard showing "datasource failed"
-**Solution**: Updated with Promise.allSettled for robust error handling
-
-**Issue**: Catalog page buffering/glitching
-**Solution**: Implemented proper timeout handling and loading states
-
-**Issue**: Users logged in after redeployment
-**Solution**: Added session validation to automatically clear invalid sessions
-
-### 🔄 Clean Redeployment
+### Data Management
 ```bash
-# Complete cleanup and redeployment
-./shutdown.sh clean
-./deploy.sh
+# Reload test data (if needed)
+python scripts/load_test_data.py --env kubernetes
 
-# Verify clean state
-kubectl get all -n seneca-bookstore
+# Check data loading results
+cat test_data/loading_results.json
+
+# Reset environment
+./shutdown.sh clean && ./deploy.sh
 ```
 
-## 🎯 Feature Highlights
+### Troubleshooting
+```bash
+# Test API health
+curl http://senecabooks.local/api/user/health
+curl http://senecabooks.local/api/catalog/health
+curl http://senecabooks.local/api/order/health
 
-### ✨ New & Enhanced Features
-- **Smart Shopping Cart**: Persistent cart with session management
-- **Enhanced Admin Dashboard**: Better error handling and data formatting
-- **Improved Catalog**: Faster loading with proper timeout handling
+# Check ingress
+kubectl get ingress -n seneca-bookstore
+
+# Monitor pods
+kubectl top pods -n seneca-bookstore
+```
+
+## ✨ Feature Highlights
+
+### Enhanced User Experience
+- **Smart Shopping Cart**: Persistent state management
+- **Responsive Design**: Works on desktop and mobile
+- **Real-time Updates**: Live cart counts and notifications
+- **Intuitive Navigation**: Role-based menu systems
+
+### Advanced Admin Features
+- **Comprehensive Analytics**: Revenue, orders, rental tracking
+- **Inventory Management**: Stock alerts and management tools
+- **User Management**: View all users and their activity
+- **System Monitoring**: Health checks and performance metrics
+
+### Security Features
+- **JWT Authentication**: Secure token-based login system
 - **Session Validation**: Automatic logout on invalid tokens
-- **Stock Management**: Realistic inventory tracking and depletion
-- **Modern UI/UX**: Responsive design with improved user experience
-
-### 🚀 Performance Improvements
-- **Reduced Order Conflicts**: Intelligent stock tracking prevents over-ordering
-- **Better Error Handling**: Promise.allSettled prevents dashboard failures
-- **Optimized Loading**: Proper timeouts and loading states
-- **Session Security**: Token validation prevents unauthorized access
-- **Efficient Data Loading**: Streamlined test data generation (50/200/120 vs 50/200/300)
+- **Role-based Access**: Different permissions for admin vs users
+- **Deployment Versioning**: Auto-logout on new deployments
 
 ---
 
-*Last Updated: August 6, 2025*
-*System Version: Enhanced v2.0 with Shopping Cart & Smart Stock Management*
+**📊 Data Status**: Fully Loaded | **🔐 Security**: Production Ready | **📈 Monitoring**: Active | **🚀 Features**: Complete
+
+### 🔗 API Documentation
+- **User Service**: http://senecabooks.local/api/user/docs
+- **Catalog Service**: http://senecabooks.local/api/catalog/docs  
+- **Order Service**: http://senecabooks.local/api/order/docs
+
+### 📈 Monitoring
+- **Prometheus**: http://senecabooks.local/prometheus
+- **Grafana**: http://senecabooks.local/grafana (admin/admin123)
+
+## 👥 Test Accounts
+
+### 👑 Admin Account
+```
+Email: admin@senecabooks.com
+Password: admin123
+Features: Full system access, user management, order oversight
+```
+
+### 👤 Sample Users
+```
+Email: john.doe@example.com
+Password: password123
+
+Email: jane.smith@example.com  
+Password: password123
+
+Email: alice.johnson@example.com
+Password: password123
+```
+
+## 📚 Test Data Overview
+
+### 📊 Data Summary
+- **Users**: 50 total (5 admin, 45 regular users)
+- **Books**: 200 books across multiple categories
+- **Orders**: ~120 orders (60% completed, balanced buy/rent ratio)
+- **Stock Management**: Realistic inventory with availability tracking
+- **Cart System**: Persistent during sessions, cleared on logout
+
+## 🎯 Key Features
+
+### 🛒 Shopping Cart System
+- **Persistent Cart**: Items saved during user session
+- **Session Management**: Cart cleared on logout for security
+- **Real-time Updates**: Live cart count and item management
+- **Checkout Integration**: Seamless order placement
+
+### 📊 Admin Dashboard
+- **Real-time Statistics**: Books, orders, revenue, active rentals
+- **Order Management**: Comprehensive tracking and analytics
+- **Book Management**: Complete CRUD with stock tracking
+- **Rental Management**: Overdue tracking and due dates
+- **Low Stock Alerts**: Automated inventory notifications
+
+### 🔒 Security Features
+- **Auto-logout**: Sessions cleared on new deployments
+- **Token Validation**: Automatic session validation
+- **Session Tracking**: Deployment version tracking
+- **Secure Storage**: Encrypted local storage management
+
+## 🔧 Quick Commands
+
+### 🚀 Deployment
+```bash
+# Full deployment
+./deploy.sh
+
+# Check status
+kubectl get all -n seneca-bookstore
+
+# View logs
+kubectl logs -f deployment/user-service -n seneca-bookstore
+```
+
+### 🐛 Troubleshooting
+```bash
+# Clean redeployment
+./shutdown.sh clean
+./deploy.sh
+
+# Check pod status
+kubectl get pods -n seneca-bookstore
+
+# Monitor resources
+kubectl top pods -n seneca-bookstore
+```
+
+## 📋 Common Issues & Solutions
+
+**Issue**: Users still logged in after redeployment  
+**Solution**: Enhanced auto-logout system now clears all sessions on deployment
+
+**Issue**: Admin dashboard showing inconsistent data  
+**Solution**: Fixed duplicate statistics display and unified data sources
+
+**Issue**: Cart items persisting between user sessions  
+**Solution**: Cart now properly cleared on logout and session changes
+
+---
+
+*Last Updated: August 7, 2025*  
+*System Version: Production v3.0 with Enhanced Security & Streamlined Dashboard*
