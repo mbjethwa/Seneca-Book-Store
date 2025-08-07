@@ -42,14 +42,19 @@ Password: password123
 ### 📚 Books (200 total)
 - **Multiple Categories**: Programming, Fiction, Business, Science, etc.
 - **Realistic Pricing**: $15-$75 for purchase, $2-$8 for rentals
-- **Stock Management**: Varied stock levels (0-50 per book)
+- **Advanced Stock Management**: Realistic inventory with zero and low stock scenarios
+  - ~6 books with **zero stock** (out of stock)
+  - ~12 books with **low stock** (1-3 units)
+  - ~182 books with **normal stock** (5-50 units)
 - **Complete Metadata**: ISBN, descriptions, authors, genres
+- **Real-time Updates**: Stock automatically decreases with orders and increases with rental returns
 
 ### 📦 Orders (120+ total)
 - **Mixed Types**: ~60% purchases, ~40% rentals
 - **Realistic Distribution**: Various order statuses and amounts
 - **Rental Tracking**: Due dates, overdue alerts, return tracking
 - **Revenue Generation**: Totaling $90,000+ in test transactions
+- **Stock Integration**: Orders automatically update catalog inventory
 
 ## 🎯 Key Features to Test
 
@@ -58,13 +63,22 @@ Password: password123
 - **Session Management**: Cart cleared on logout for security
 - **Real-time Updates**: Live cart count and total calculation
 - **Checkout Process**: Complete order placement workflow
+- **Stock Validation**: Cart prevents ordering more than available stock
 
 ### 📊 Admin Dashboard
 - **Real-time Statistics**: Books, orders, revenue, active rentals
 - **Order Management**: Filter, search, and track all orders
 - **Book Management**: Add, edit, delete books with stock tracking
 - **Rental Management**: Overdue tracking and due date monitoring
-- **Inventory Alerts**: Low stock notifications and management
+- **Advanced Inventory Management**: Low stock alerts, stock updates, availability tracking
+
+### 🏪 Advanced Inventory Features (NEW)
+- **Real-time Stock Updates**: Inventory automatically decreases when orders are placed
+- **Rental Stock Management**: Stock is restored when rental books are returned
+- **Out-of-Stock Prevention**: Users cannot order books that are out of stock
+- **Low Stock Alerts**: Admin dashboard highlights books with low inventory
+- **Stock Visibility**: Users can see exact stock quantities for each book
+- **Service Integration**: Order service automatically updates catalog service stock levels
 
 ### 👤 User Dashboard  
 - **Order History**: View all purchases and rentals
@@ -101,6 +115,45 @@ Password: password123
 - **Login**: admin / admin123
 - **Dashboard**: "Seneca Book Store Overview"
 - **Features**: Real-time service monitoring and business insights
+
+## 🧪 Testing Advanced Inventory Management
+
+### 🔬 Inventory Test Scenarios
+
+**Test 1: Out-of-Stock Prevention**
+1. Navigate to book catalog
+2. Look for books with "Out of stock" badges (approximately 6 books)
+3. Verify "Add to Cart" buttons are disabled for these books
+4. Attempt to order - should be prevented by UI
+
+**Test 2: Low Stock Alerts** 
+1. Login as admin (admin@senecabooks.com / admin123)
+2. Go to Admin Dashboard → Books section
+3. Look for low stock warnings (books with 1-3 stock)
+4. Verify stock quantities are displayed accurately
+
+**Test 3: Real-time Stock Updates**
+1. Login as regular user (john.doe@example.com / password123)
+2. Find a book with low stock (e.g., 2 units)
+3. Add 1 to cart and checkout
+4. Refresh catalog - stock should decrease to 1
+5. Login as admin to verify admin dashboard reflects the change
+
+**Test 4: Rental Stock Restoration**
+1. Rent a book that has low stock
+2. As admin, verify stock decreased after rental
+3. Return the rental from user dashboard
+4. Verify stock is restored after return
+
+**Test 5: Cart Stock Validation**
+1. Add multiple copies of a low-stock book to cart
+2. Verify quantity cannot exceed available stock
+3. Attempt checkout - should show error if exceeding stock
+
+### 📊 Expected Inventory Distribution
+- **Zero Stock Books**: ~6 books (3 Programming, 2 Fiction, 1 Business)
+- **Low Stock Books**: ~12 books (5 Programming, 4 Fiction, 3 Business)  
+- **Normal Stock Books**: ~182 books (remaining inventory)
 
 ## 🛠️ Development Commands
 

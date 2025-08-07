@@ -110,3 +110,25 @@ def get_books_by_source(db: Session, source: str, skip: int = 0, limit: int = 10
 def get_book_by_external_key(db: Session, external_key: str) -> Optional[Book]:
     """Get book by external API key."""
     return db.query(Book).filter(Book.external_key == external_key).first()
+
+def update_book_stock(db: Session, book_id: int, quantity_change: int) -> Optional[Book]:
+    """Update book stock quantity (can be positive or negative)."""
+    db_book = db.query(Book).filter(Book.id == book_id).first()
+    if not db_book:
+        return None
+    
+    # Calculate new stock quantity
+    new_stock = db_book.stock_quantity + quantity_change
+    
+    # Ensure stock doesn't go below 0
+    if new_stock < 0:
+        new_stock = 0
+    
+    db_book.stock_quantity = new_stock
+    
+    # Update availability based on stock
+    db_book.available = new_stock > 0
+    
+    db.commit()
+    db.refresh(db_book)
+    return db_book

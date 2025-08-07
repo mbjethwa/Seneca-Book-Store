@@ -1,4 +1,4 @@
-from fastapi import HTTPException, status, Depends
+from fastapi import HTTPException, status, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import requests
 import os
@@ -10,6 +10,12 @@ security = HTTPBearer()
 # Configuration
 USER_SERVICE_URL = os.getenv("USER_SERVICE_URL", "http://localhost:8001")
 ADMIN_EMAILS = os.getenv("ADMIN_EMAILS", "admin@seneca.ca,admin@example.com").split(",")
+SERVICE_AUTH_TOKEN = os.getenv("SERVICE_AUTH_TOKEN", "order-service")
+
+async def verify_service_token(request: Request) -> bool:
+    """Verify service-to-service authentication."""
+    service_auth = request.headers.get("X-Service-Auth")
+    return service_auth == SERVICE_AUTH_TOKEN
 
 async def verify_user_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
     """Verify user token by calling user service."""

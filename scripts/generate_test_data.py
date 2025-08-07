@@ -271,7 +271,18 @@ class TestDataGenerator:
         books = []
         
         # Add programming books
-        for title, author, isbn in self.programming_books:
+        for i, (title, author, isbn) in enumerate(self.programming_books):
+            # Create varied stock levels including low and zero stock
+            if i < 3:  # First 3 books have zero stock
+                stock_quantity = 0
+                available = False
+            elif i < 8:  # Next 5 books have low stock (1-2)
+                stock_quantity = random.randint(1, 2)
+                available = True
+            else:  # Rest have normal stock
+                stock_quantity = random.randint(5, 50)
+                available = True
+                
             books.append({
                 "title": title,
                 "author": author,
@@ -280,8 +291,8 @@ class TestDataGenerator:
                 "category": "Programming",
                 "price": round(random.uniform(29.99, 79.99), 2),
                 "rent_price": round(random.uniform(2.99, 7.99), 2),
-                "available": True,
-                "stock_quantity": random.randint(5, 50),
+                "available": available,
+                "stock_quantity": stock_quantity,
                 "publication_year": random.randint(2010, 2024),
                 "publisher": random.choice(["O'Reilly Media", "Addison-Wesley", "Manning", "Packt", "Apress", "No Starch Press"]),
                 "cover_url": self.generate_cover_url(isbn),
@@ -290,7 +301,18 @@ class TestDataGenerator:
             })
         
         # Add classic and popular books
-        for title, author, isbn, category in self.classic_books:
+        for i, (title, author, isbn, category) in enumerate(self.classic_books):
+            # Create varied stock levels
+            if i < 2:  # First 2 books have zero stock
+                stock_quantity = 0
+                available = False
+            elif i < 6:  # Next 4 books have low stock (1-3)
+                stock_quantity = random.randint(1, 3)
+                available = True
+            else:  # Rest have normal stock
+                stock_quantity = random.randint(10, 100)
+                available = True
+                
             books.append({
                 "title": title,
                 "author": author,
@@ -299,8 +321,8 @@ class TestDataGenerator:
                 "category": category,
                 "price": round(random.uniform(12.99, 24.99), 2),
                 "rent_price": round(random.uniform(1.99, 4.99), 2),
-                "available": True,
-                "stock_quantity": random.randint(10, 100),
+                "available": available,
+                "stock_quantity": stock_quantity,
                 "publication_year": random.randint(1950, 2020),
                 "publisher": random.choice(["Penguin Classics", "HarperCollins", "Random House", "Simon & Schuster", "Houghton Mifflin"]),
                 "cover_url": self.generate_cover_url(isbn),
@@ -309,7 +331,18 @@ class TestDataGenerator:
             })
         
         # Add business books
-        for title, author, isbn, category in self.business_books:
+        for i, (title, author, isbn, category) in enumerate(self.business_books):
+            # Create varied stock levels
+            if i < 1:  # First book has zero stock
+                stock_quantity = 0
+                available = False
+            elif i < 4:  # Next 3 books have low stock (1-2)
+                stock_quantity = random.randint(1, 2)
+                available = True
+            else:  # Rest have normal stock
+                stock_quantity = random.randint(5, 30)
+                available = True
+                
             books.append({
                 "title": title,
                 "author": author,
@@ -318,8 +351,8 @@ class TestDataGenerator:
                 "category": category,
                 "price": round(random.uniform(15.99, 29.99), 2),
                 "rent_price": round(random.uniform(2.49, 5.99), 2),
-                "available": True,
-                "stock_quantity": random.randint(8, 40),
+                "available": available,
+                "stock_quantity": stock_quantity,
                 "publication_year": random.randint(1990, 2023),
                 "publisher": random.choice(["Harvard Business Review Press", "McGraw-Hill", "Wiley", "Portfolio", "Crown Business"]),
                 "cover_url": self.generate_cover_url(isbn),
@@ -361,6 +394,18 @@ class TestDataGenerator:
             isbn = self.generate_isbn()
             category = random.choice(self.categories)
             
+            # Varied stock levels for remaining books
+            random_factor = random.random()
+            if random_factor < 0.05:  # 5% chance of zero stock
+                stock_quantity = 0
+                available = False
+            elif random_factor < 0.15:  # 10% chance of low stock (1-3)
+                stock_quantity = random.randint(1, 3)
+                available = True
+            else:  # 85% chance of normal stock
+                stock_quantity = random.randint(5, 50)
+                available = True
+            
             books.append({
                 "title": title,
                 "author": author,
@@ -369,8 +414,8 @@ class TestDataGenerator:
                 "category": category,
                 "price": round(random.uniform(19.99, 89.99), 2),
                 "rent_price": round(random.uniform(2.99, 8.99), 2),
-                "available": True,  # Always available for test data
-                "stock_quantity": random.randint(5, 50),  # Minimum 5 stock to allow orders
+                "available": available,
+                "stock_quantity": stock_quantity,
                 "publication_year": random.randint(2000, 2024),
                 "publisher": random.choice(publishers),
                 "cover_url": self.generate_cover_url(isbn),
@@ -388,8 +433,11 @@ class TestDataGenerator:
         order_types = ["buy", "rent"]
         order_statuses = ["pending", "confirmed", "completed", "cancelled", "returned"]
         
-        # Track available stock for realistic ordering
-        available_books = [i for i in range(1, min(book_count, len(self.books)) + 1)]
+        # Track available stock for realistic ordering - only books with stock > 0
+        available_books = [
+            i for i in range(1, min(book_count, len(self.books)) + 1) 
+            if i <= len(self.books) and self.books[i-1].get("stock_quantity", 0) > 0
+        ]
         
         successful_orders = 0
         attempts = 0
@@ -407,8 +455,15 @@ class TestDataGenerator:
                 "author": "Sample Author", 
                 "isbn": "1234567890123",
                 "price": 19.99,
-                "rent_price": 3.99
+                "rent_price": 3.99,
+                "stock_quantity": 5
             }
+            
+            # Skip if book has no stock (safety check)
+            if book.get("stock_quantity", 0) <= 0:
+                if book_id in available_books:
+                    available_books.remove(book_id)
+                continue
             
             order_type = random.choice(order_types)
             unit_price = book["price"] if order_type == "buy" else book["rent_price"]

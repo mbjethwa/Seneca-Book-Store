@@ -4,6 +4,7 @@ from database import Order, OrderType, OrderStatus
 import schemas
 from datetime import datetime, timedelta
 from typing import List, Optional, Tuple
+import asyncio
 
 def get_order_by_id(db: Session, order_id: int, user_id: int = None) -> Optional[Order]:
     """Get order by ID, optionally filtered by user."""
@@ -81,6 +82,20 @@ def create_order(db: Session, order: schemas.OrderCreate, user_id: int, book_inf
     db.add(db_order)
     db.commit()
     db.refresh(db_order)
+    
+    # Update catalog stock after successful order creation
+    try:
+        from auth import update_catalog_stock
+        # Reduce stock by the ordered quantity
+        asyncio.create_task(update_catalog_stock(
+            book_id=order.book_id,
+            quantity_change=-order.quantity,
+            reason=f"Order #{db_order.id} - {order.order_type.value}"
+        ))
+    except Exception as e:
+        print(f"Warning: Failed to update catalog stock for order {db_order.id}: {e}")
+        # Don't fail the order if stock update fails
+    
     return db_order
 
 def update_order_status(db: Session, order_id: int, status_update: schemas.OrderStatusUpdate, user_id: int = None) -> Optional[Order]:
@@ -122,6 +137,20 @@ def return_rental(db: Session, order_id: int, return_request: schemas.OrderRetur
     
     db.commit()
     db.refresh(db_order)
+    
+    # Restore stock when rental is returned
+    try:
+        from auth import update_catalog_stock
+        # Add stock back when rental is returned
+        asyncio.create_task(update_catalog_stock(
+            book_id=db_order.book_id,
+            quantity_change=db_order.quantity,
+            reason=f"Rental return #{db_order.id}"
+        ))
+    except Exception as e:
+        print(f"Warning: Failed to update catalog stock for returned rental {db_order.id}: {e}")
+        # Don't fail the return if stock update fails
+    
     return db_order
 
 def get_user_order_summary(db: Session, user_id: int) -> schemas.OrderSummary:

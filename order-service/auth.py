@@ -66,6 +66,33 @@ async def get_book_info(book_id: int) -> Optional[dict]:
             detail="Catalog service unavailable"
         )
 
+async def update_catalog_stock(book_id: int, quantity_change: int, reason: str = "Order processing") -> bool:
+    """Update book stock in catalog service."""
+    try:
+        # Get admin token from environment or use a service account
+        # For now, we'll use internal service communication
+        headers = {
+            "Content-Type": "application/json",
+            "X-Service-Auth": "order-service"  # Service-to-service auth
+        }
+        
+        payload = {
+            "quantity_change": quantity_change,
+            "reason": reason
+        }
+        
+        response = requests.put(
+            f"{CATALOG_SERVICE_URL}/books/{book_id}/stock", 
+            json=payload,
+            headers=headers,
+            timeout=10
+        )
+        
+        return response.status_code == 200
+    except requests.RequestException as e:
+        print(f"Failed to update catalog stock: {e}")
+        return False
+
 # Optional: For testing without external services
 async def get_mock_user() -> dict:
     """Mock user for testing purposes."""

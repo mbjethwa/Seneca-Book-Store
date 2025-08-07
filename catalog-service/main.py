@@ -9,7 +9,8 @@ import time
 
 # Import our modules
 from database import get_db
-from auth import get_admin_user, get_current_user
+from auth import get_admin_user, get_current_user, verify_service_token
+import auth
 import crud
 import schemas
 from metrics import PrometheusMetrics
@@ -396,6 +397,62 @@ async def get_authors(db: Session = Depends(get_db)):
     """Get all available authors."""
     authors = crud.get_authors(db)
     return {"authors": authors}
+
+@app.put("/books/{book_id}/stock", response_model=schemas.BookResponse)
+async def update_book_stock(
+    book_id: int,
+    stock_update: schemas.BookStockUpdate,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Update book stock quantity (admin or service auth required)."""
+    # Check for service-to-service authentication first
+    service_auth = request.headers.get("X-Service-Auth")
+    if service_auth == "order-service":
+        # Service authentication - proceed with stock update
+        book = crud.update_book_stock(db, book_id=book_id, quantity_change=stock_update.quantity_change)
+        if book is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Book not found"
+            )
+        logger.info(f"Stock updated for book {book_id}: {stock_update.quantity_change} (Service: order-service)")
+        return book
+    else:
+        # Regular admin authentication required
+        try:
+            from auth import verify_user_token, get_current_user, get_admin_user
+            from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+            
+            # Extract bearer token
+            authorization = request.headers.get("Authorization")
+            if not authorization or not authorization.startswith("Bearer "):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Missing or invalid authorization header"
+                )
+            
+            token = authorization.split(" ")[1]
+            credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+            
+            # Verify admin user
+            user_data = await verify_user_token(credentials)
+            current_user = await get_current_user(user_data)
+            admin_user = await get_admin_user(current_user)
+            
+            book = crud.update_book_stock(db, book_id=book_id, quantity_change=stock_update.quantity_change)
+            if book is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Book not found"
+                )
+            logger.info(f"Stock updated for book {book_id}: {stock_update.quantity_change} (Admin: {admin_user.get('email', 'unknown')})")
+            return book
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin privileges required for manual stock updates"
+            )
 
 # Development endpoint to create sample data
 @app.post("/seed-data")

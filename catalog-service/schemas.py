@@ -59,6 +59,11 @@ class BookSearchQuery(BaseModel):
     max_price: Optional[float] = None
     available_only: bool = True
 
+class BookStockUpdate(BaseModel):
+    """Schema for updating book stock quantity"""
+    quantity_change: int = Field(..., description="Positive to add stock, negative to reduce stock")
+    reason: Optional[str] = Field(None, max_length=200, description="Reason for stock change")
+
 # External Book Data Schemas (Open Library API)
 class ExternalBook(BaseModel):
     """Schema for external book data from Open Library API."""
